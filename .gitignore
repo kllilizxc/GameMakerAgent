@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Bun
+bun.lockb
+.bun/
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+!.vscode/launch.json
+.idea/
+
+# Build outputs
+/dist/
+/build/
+/out/
+
+# OpenCode runtime/state
+.opencode/
+**/.opencode/
+
+# OpenCode local cache
+.local/share/opencode/
+.cache/opencode/
+
+# Env
+.env
+.env.*
+
+# Temporary
+*.tmp
+*.swp
