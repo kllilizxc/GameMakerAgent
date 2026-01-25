@@ -1,0 +1,24 @@
+import { Elysia } from "elysia"
+import { cors } from "@elysiajs/cors"
+import { ensureWorkspacesDir } from "./session/workspace"
+import { listEngines } from "./engine/registry"
+import { wsHandler } from "./protocol/handler"
+
+const PORT = Number(process.env.PORT) || 3001
+const HOST = process.env.HOST || "0.0.0.0"
+
+await ensureWorkspacesDir()
+
+const app = new Elysia()
+  .use(cors())
+  .get("/", () => "Game Agent Server")
+  .get("/health", () => ({ status: "ok", engines: listEngines() }))
+  .get("/engines", () => ({ engines: listEngines() }))
+  .ws("/ws", wsHandler)
+  .listen({ port: PORT, hostname: HOST })
+
+console.log(`🎮 Game Agent Server`)
+console.log(`   Available engines: ${listEngines().join(", ")}`)
+console.log(`   HTTP: http://${HOST}:${PORT}`)
+console.log(`   WebSocket: ws://${HOST}:${PORT}/ws`)
+console.log(`   Ready!`)

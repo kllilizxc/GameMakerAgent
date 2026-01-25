@@ -4,7 +4,16 @@
   "private": true,
   "type": "module",
   "version": "0.0.0",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts"
+  },
   "dependencies": {
-    "@game-agent/agent": "workspace:*"
+    "@game-agent/agent": "workspace:*",
+    "elysia": "^1.1.0",
+    "@elysiajs/cors": "^1.1.0",
+    "zod": "^3.23.8",
+    "nanoid": "^5.0.7",
+    "chokidar": "^3.6.0"
   }
 }

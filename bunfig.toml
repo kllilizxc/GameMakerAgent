@@ -1,3 +1,6 @@
+[install]
+registry = "https://registry.npmjs.org/"
+
 [run]
 # Use browser conditions like opencode requires
 conditions = ["browser"]

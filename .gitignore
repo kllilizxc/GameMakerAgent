@@ -32,6 +32,9 @@ pnpm-debug.log*
 .opencode/
 **/.opencode/
 
+# Server workspaces (generated game projects)
+workspaces/
+
 # OpenCode local cache
 .local/share/opencode/
 .cache/opencode/
