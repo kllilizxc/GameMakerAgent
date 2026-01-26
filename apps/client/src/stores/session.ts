@@ -1,29 +1,6 @@
 import { create } from "zustand"
 import { useFilesStore } from "./files"
-
-interface Message {
-  id: string
-  role: "user" | "agent"
-  content: string
-}
-
-interface Activity {
-  id: string
-  type: "tool" | "text" | "file"
-  timestamp: number
-  data: {
-    tool?: string
-    title?: string
-    path?: string
-    text?: string
-  }
-}
-
-interface FsPatch {
-  op: "write" | "delete" | "mkdir"
-  path: string
-  content?: string
-}
+import type { Message, Activity, FsPatch } from "@/types/session"
 
 interface SessionState {
   sessionId: string | null

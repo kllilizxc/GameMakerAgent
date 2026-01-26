@@ -18,6 +18,6 @@
       "@tui/*": ["packages/opencode/packages/opencode/src/cli/cmd/tui/*"]
     }
   },
-  "include": ["apps", "packages"],
-  "exclude": ["node_modules"]
+  "include": ["packages"],
+  "exclude": ["node_modules", "apps"]
 }
