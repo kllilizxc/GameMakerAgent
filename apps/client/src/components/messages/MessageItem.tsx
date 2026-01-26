@@ -16,6 +16,9 @@ export function MessageItem({ message }: MessageItemProps) {
       )}
     >
       {message.content}
+      {message.streaming && (
+        <span className="inline-block w-1.5 h-4 ml-1 bg-current animate-pulse" />
+      )}
     </div>
   )
 }

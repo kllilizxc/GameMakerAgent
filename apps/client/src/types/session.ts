@@ -2,6 +2,8 @@ export interface Message {
   id: string
   role: "user" | "agent"
   content: string
+  streaming?: boolean
+  timestamp: number
 }
 
 export interface Activity {

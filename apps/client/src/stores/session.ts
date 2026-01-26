@@ -8,6 +8,8 @@ interface SessionState {
   status: "idle" | "connecting" | "running" | "error"
   messages: Message[]
   activities: Activity[]
+  streamingMessageId: string | null
+  sequence: number
   error: string | null
   ws: WebSocket | null
 
@@ -15,6 +17,8 @@ interface SessionState {
   disconnect: () => void
   sendPrompt: (prompt: string) => void
   addMessage: (message: Message) => void
+  updateStreamingMessage: (textId: string, text: string) => void
+  finalizeStreamingMessage: () => void
   addActivity: (activity: Omit<Activity, "id" | "timestamp">) => void
   clearActivities: () => void
   setStatus: (status: SessionState["status"]) => void
@@ -26,6 +30,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   status: "idle",
   messages: [],
   activities: [],
+  streamingMessageId: null,
+  sequence: 0,
   error: null,
   ws: null,
 
@@ -69,9 +75,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   sendPrompt: (prompt: string) => {
-    const { ws, sessionId, engineId, status } = get()
+    const state = get()
+    const { ws, sessionId, engineId, status } = state
     
-    console.log("[ws] sendPrompt called", { ws: !!ws, status, prompt })
+    console.log("[ws] sendPrompt called", { ws: !!ws, status, sessionId, prompt })
     
     if (!ws) {
       console.error("[ws] No WebSocket connection")
@@ -81,14 +88,24 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       console.log("[ws] Already running, ignoring prompt")
       return
     }
+    if (!sessionId) {
+      console.error("[ws] No sessionId available. Session not initialized.")
+      return
+    }
 
     // Add user message
-    const userMsg: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: prompt,
-    }
-    set((s) => ({ messages: [...s.messages, userMsg] }))
+    set((s) => {
+      const userMsg: Message = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: prompt,
+        timestamp: s.sequence,
+      }
+      return {
+        messages: [...s.messages, userMsg],
+        sequence: s.sequence + 1,
+      }
+    })
 
     // Send to server
     const message = {
@@ -105,6 +122,43 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set((s) => ({ messages: [...s.messages, message] }))
   },
 
+  updateStreamingMessage: (textId: string, text: string) => {
+    set((s) => {
+      // Check if message with this textId already exists
+      const existing = s.messages.find((m) => m.id === textId)
+      if (existing) {
+        return {
+          messages: s.messages.map((m) =>
+            m.id === textId ? { ...m, content: text, streaming: true } : m
+          ),
+          streamingMessageId: textId,
+        }
+      }
+      // Create new message
+      const newMsg: Message = {
+        id: textId,
+        role: "agent",
+        content: text,
+        streaming: true,
+        timestamp: s.sequence,
+      }
+      return {
+        messages: [...s.messages, newMsg],
+        streamingMessageId: textId,
+        sequence: s.sequence + 1,
+      }
+    })
+  },
+
+  finalizeStreamingMessage: () => {
+    set((s) => ({
+      messages: s.messages.map((m) =>
+        m.id === s.streamingMessageId ? { ...m, streaming: false } : m
+      ),
+      streamingMessageId: null,
+    }))
+  },
+
   addActivity: (activity) => {
     set((s) => ({
       activities: [
@@ -112,9 +166,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         {
           ...activity,
           id: crypto.randomUUID(),
-          timestamp: Date.now(),
+          timestamp: s.sequence,
         },
       ],
+      sequence: s.sequence + 1,
     }))
   },
 
@@ -136,23 +191,25 @@ function handleServerMessage(
         sessionId: msg.sessionId as string,
         status: "running",
       })
-      useSessionStore.getState().clearActivities()
       break
 
     case "agent/event": {
-      const event = msg.event as { type: string; data?: { text?: string; tool?: string; title?: string } } | undefined
-      if (event?.type === "text" && event.data?.text) {
-        const agentMsg: Message = {
-          id: crypto.randomUUID(),
-          role: "agent",
-          content: event.data.text,
-        }
-        set((s) => ({ messages: [...s.messages, agentMsg] }))
+      const event = msg.event as { type: string; data?: { text?: string; id?: string; tool?: string; title?: string } } | undefined
+      
+      if (event?.type === "text-delta" && event.data?.text && event.data?.id) {
+        // Streaming text chunk
+        useSessionStore.getState().updateStreamingMessage(event.data.id, event.data.text)
+      } else if (event?.type === "text" && event.data?.text) {
+        // Final complete text
+        useSessionStore.getState().finalizeStreamingMessage()
+      } else if (event?.type === "tool-start" && event.data?.tool) {
+        // Tool started
         useSessionStore.getState().addActivity({
-          type: "text",
-          data: { text: event.data.text },
+          type: "tool",
+          data: { tool: event.data.tool, title: event.data.title },
         })
       } else if (event?.type === "tool" && event.data?.tool) {
+        // Tool completed
         useSessionStore.getState().addActivity({
           type: "tool",
           data: { tool: event.data.tool, title: event.data.title },
@@ -162,6 +219,7 @@ function handleServerMessage(
     }
 
     case "run/finished":
+      useSessionStore.getState().finalizeStreamingMessage()
       set({ status: "idle" })
       break
 
@@ -189,10 +247,13 @@ function handleServerMessage(
     }
 
     case "fs/snapshot": {
-      const files = msg.files as Record<string, string> | undefined
-      if (files) {
-        console.log("[ws] received snapshot:", Object.keys(files).length, "files")
-        useFilesStore.getState().setSnapshot(files)
+      const snapshot = msg.files as Record<string, string> | undefined
+      if (snapshot) {
+        const receivedSessionId = msg.sessionId as string
+        console.log("[ws] received snapshot:", Object.keys(snapshot).length, "files, sessionId:", receivedSessionId)
+        // Store sessionId from snapshot
+        set({ sessionId: receivedSessionId })
+        useFilesStore.getState().setSnapshot(snapshot)
       }
       break
     }

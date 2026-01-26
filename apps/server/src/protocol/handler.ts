@@ -46,25 +46,20 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
 
   switch (msg.type) {
     case "run/start": {
-      let session = msg.sessionId ? getSession(msg.sessionId) : undefined
-      const isNewSession = !session
-
+      // Session should already exist from connection
+      const wsSessionId = ws.data.sessionId as string
+      const msgSessionId = msg.sessionId
+      console.log("[ws] run/start - ws.data.sessionId:", wsSessionId, "msg.sessionId:", msgSessionId)
+      
+      const session = getSession(msgSessionId || wsSessionId)
+      console.log("[ws] getSession result:", session ? `found (${session.id})` : "not found")
+      
       if (!session) {
-        session = await createSession(msg.engineId)
-      }
-
-      ws.data.sessionId = session.id
-      addSocket(session, ws.raw)
-
-      // Send initial snapshot for new sessions
-      if (isNewSession) {
-        const files = await getSnapshot(session)
         ws.send({
-          type: "fs/snapshot",
-          sessionId: session.id,
-          seq: nextSeq(session),
-          files,
+          type: "run/error",
+          message: "No session found. Please reconnect.",
         })
+        return
       }
 
       if (session.currentRunId) {
@@ -153,9 +148,23 @@ function handleClose(ws: WsContext): void {
 }
 
 export const wsHandler = {
-  open(ws: WsContext) {
+  async open(ws: WsContext) {
     ws.data = { sessionId: "" }
     console.log(`[ws] client connected`)
+    
+    // Create session and send initial snapshot immediately
+    const session = await createSession("phaser-2d")
+    ws.data.sessionId = session.id
+    addSocket(session, ws.raw)
+    
+    const files = await getSnapshot(session)
+    ws.send({
+      type: "fs/snapshot",
+      sessionId: session.id,
+      seq: nextSeq(session),
+      files,
+    })
+    console.log(`[ws] sent initial snapshot with ${Object.keys(files).length} files`)
   },
 
   message(ws: WsContext, message: unknown) {

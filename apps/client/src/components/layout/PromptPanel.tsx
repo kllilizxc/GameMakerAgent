@@ -6,7 +6,6 @@ import { PromptHeader } from "@/components/prompt/PromptHeader"
 import { PromptInput } from "@/components/prompt/PromptInput"
 import { MobilePromptPanel } from "@/components/prompt/MobilePromptPanel"
 import { MessageList } from "@/components/messages/MessageList"
-import { ActivityFeed } from "@/components/activities/ActivityFeed"
 
 interface PromptPanelProps {
   mobile?: boolean
@@ -47,7 +46,6 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4">
         <MessageList messages={messages} />
-        {isLoading && <ActivityFeed activities={activities} />}
         <div ref={scrollRef} />
       </div>
 

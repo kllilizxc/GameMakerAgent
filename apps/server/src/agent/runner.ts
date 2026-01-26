@@ -92,9 +92,8 @@ export async function executeRun(
     const { run } = await import("@game-agent/agent")
 
     const systemPrompt = engine.systemPrompt?.() ?? ""
-    const fullPrompt = systemPrompt ? `${systemPrompt}\n\nUser request: ${prompt}` : prompt
 
-    await run(workspaceDir, { prompt: fullPrompt }, (event) => {
+    await run(workspaceDir, { prompt, system: systemPrompt }, (event) => {
       if (ctx.aborted) return
 
       const msg: AgentEventMessage = {

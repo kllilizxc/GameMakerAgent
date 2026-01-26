@@ -58,7 +58,7 @@ export const AgentEventMessage = z.object({
   sessionId: z.string(),
   runId: z.string(),
   event: z.object({
-    type: z.enum(["session", "text", "tool", "finished", "error"]),
+    type: z.enum(["session", "text", "text-delta", "tool", "tool-start", "finished", "error"]),
     sessionId: z.string().optional(),
     data: z.unknown().optional(),
   }),
