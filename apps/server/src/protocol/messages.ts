@@ -8,7 +8,7 @@ export type EngineId = z.infer<typeof EngineId>
 
 export const RunStartMessage = z.object({
   type: z.literal("run/start"),
-  sessionId: z.string().optional(),
+  sessionId: z.string().nullish(),
   prompt: z.string(),
   engineId: EngineId.default("phaser-2d"),
   options: z.record(z.unknown()).optional(),

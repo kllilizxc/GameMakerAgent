@@ -20,10 +20,14 @@ interface WsContext {
 }
 
 async function handleMessage(ws: WsContext, message: string): Promise<void> {
+  console.log("[ws] raw message type:", typeof message, "value:", message)
+  
   let parsed: unknown
   try {
     parsed = JSON.parse(message)
-  } catch {
+    console.log("[ws] parsed:", parsed)
+  } catch (e) {
+    console.error("[ws] JSON parse error:", e, "message was:", message)
     ws.send({ type: "error", message: "Invalid JSON" })
     return
   }
@@ -43,6 +47,7 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
   switch (msg.type) {
     case "run/start": {
       let session = msg.sessionId ? getSession(msg.sessionId) : undefined
+      const isNewSession = !session
 
       if (!session) {
         session = await createSession(msg.engineId)
@@ -50,6 +55,17 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
 
       ws.data.sessionId = session.id
       addSocket(session, ws.raw)
+
+      // Send initial snapshot for new sessions
+      if (isNewSession) {
+        const files = await getSnapshot(session)
+        ws.send({
+          type: "fs/snapshot",
+          sessionId: session.id,
+          seq: nextSeq(session),
+          files,
+        })
+      }
 
       if (session.currentRunId) {
         ws.send({
@@ -142,8 +158,21 @@ export const wsHandler = {
     console.log(`[ws] client connected`)
   },
 
-  message(ws: WsContext, message: string) {
-    handleMessage(ws, message)
+  message(ws: WsContext, message: unknown) {
+    console.log(`[ws] message type:`, typeof message, message)
+    
+    // Elysia may pass string, Buffer, or already-parsed object
+    let text: string
+    if (typeof message === "string") {
+      text = message
+    } else if (typeof message === "object" && message !== null) {
+      // Already parsed by Elysia
+      text = JSON.stringify(message)
+    } else {
+      text = String(message)
+    }
+    
+    handleMessage(ws, text)
   },
 
   close(ws: WsContext) {
