@@ -10,6 +10,8 @@ export interface Activity {
   id: string
   type: "tool" | "text" | "file"
   timestamp: number
+  completed?: boolean
+  callId?: string
   data: {
     tool?: string
     title?: string

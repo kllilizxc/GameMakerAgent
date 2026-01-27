@@ -194,7 +194,7 @@ function handleServerMessage(
       break
 
     case "agent/event": {
-      const event = msg.event as { type: string; data?: { text?: string; id?: string; tool?: string; title?: string } } | undefined
+      const event = msg.event as { type: string; data?: { text?: string; id?: string; tool?: string; title?: string; callId?: string } } | undefined
       
       if (event?.type === "text-delta" && event.data?.text && event.data?.id) {
         // Streaming text chunk
@@ -202,17 +202,66 @@ function handleServerMessage(
       } else if (event?.type === "text" && event.data?.text) {
         // Final complete text
         useSessionStore.getState().finalizeStreamingMessage()
-      } else if (event?.type === "tool-start" && event.data?.tool) {
-        // Tool started
-        useSessionStore.getState().addActivity({
-          type: "tool",
-          data: { tool: event.data.tool, title: event.data.title },
+      } else if (event?.type === "tool-start" && event.data?.tool && event.data?.callId) {
+        // Tool started - replace existing activity with same callId
+        const { tool, title, callId } = event.data
+        console.log("[ws] tool-start:", tool, "callId:", callId)
+        set((s) => {
+          const existingIndex = s.activities.findIndex((a) => a.callId === callId)
+          const newActivity = {
+            id: callId,
+            type: "tool" as const,
+            completed: false,
+            callId,
+            timestamp: existingIndex !== -1 ? s.activities[existingIndex].timestamp : s.sequence,
+            data: { tool, title },
+          }
+          
+          if (existingIndex !== -1) {
+            console.log("[ws] replacing existing activity at index:", existingIndex)
+            const activities = [...s.activities]
+            activities[existingIndex] = newActivity
+            return { activities }
+          }
+          
+          return {
+            activities: [...s.activities, newActivity],
+            sequence: s.sequence + 1,
+          }
         })
-      } else if (event?.type === "tool" && event.data?.tool) {
-        // Tool completed
-        useSessionStore.getState().addActivity({
-          type: "tool",
-          data: { tool: event.data.tool, title: event.data.title },
+      } else if (event?.type === "tool" && event.data?.tool && event.data?.callId) {
+        // Tool completed - replace existing activity with completed version
+        const { tool, title, callId } = event.data
+        console.log("[ws] tool completed:", tool, "callId:", callId)
+        set((s) => {
+          const existingIndex = s.activities.findIndex((a) => a.callId === callId)
+          
+          if (existingIndex !== -1) {
+            console.log("[ws] marking tool complete at index:", existingIndex)
+            const activities = [...s.activities]
+            activities[existingIndex] = {
+              ...activities[existingIndex],
+              completed: true,
+              data: { tool, title },
+            }
+            return { activities }
+          }
+          
+          console.log("[ws] tool completed but no matching start found, creating new activity")
+          return {
+            activities: [
+              ...s.activities,
+              {
+                id: callId,
+                type: "tool" as const,
+                completed: true,
+                callId,
+                timestamp: s.sequence,
+                data: { tool, title },
+              },
+            ],
+            sequence: s.sequence + 1,
+          }
         })
       }
       break
