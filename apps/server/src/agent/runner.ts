@@ -5,6 +5,7 @@ import type { Session } from "../session/manager"
 import { broadcast, nextSeq, getWorkspacePath, finishRun } from "../session/manager"
 import { getEngine } from "../engine/registry"
 import type { FsPatchOp, AgentEventMessage, FsPatchMessage } from "../protocol/messages"
+import { Perf } from "@game-agent/perf"
 
 interface RunContext {
   session: Session
@@ -93,6 +94,7 @@ export async function executeRun(
 
     const systemPrompt = engine.systemPrompt?.() ?? ""
 
+    const agentTimer = Perf.time("agent", "llm-execute")
     await run(workspaceDir, { prompt, system: systemPrompt }, (event) => {
       if (ctx.aborted) return
 
@@ -108,6 +110,7 @@ export async function executeRun(
       }
       broadcast(session, msg)
     })
+    agentTimer.stop()
 
     flushPatches()
 

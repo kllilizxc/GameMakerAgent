@@ -3,6 +3,7 @@ import { cors } from "@elysiajs/cors"
 import { ensureWorkspacesDir } from "./session/workspace"
 import { listEngines } from "./engine/registry"
 import { wsHandler } from "./protocol/handler"
+import { Perf } from "@game-agent/perf"
 
 const PORT = Number(process.env.PORT) || 3001
 const HOST = process.env.HOST || "0.0.0.0"
@@ -14,6 +15,8 @@ const app = new Elysia()
   .get("/", () => "Game Agent Server")
   .get("/health", () => ({ status: "ok", engines: listEngines() }))
   .get("/engines", () => ({ engines: listEngines() }))
+  .get("/perf", () => Perf.getSummary())
+  .post("/perf/reset", () => { Perf.reset(); return { ok: true } })
   .ws("/ws", wsHandler)
   .listen({ port: PORT, hostname: HOST })
 

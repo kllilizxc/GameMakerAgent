@@ -6,7 +6,8 @@
   "packageManager": "bun@1.3.5",
   "workspaces": [
     "apps/*",
-    "packages/agent"
+    "packages/agent",
+    "packages/perf"
   ],
   "scripts": {
     "test:agent": "bun run --conditions=browser --cwd packages/opencode/packages/opencode ../../../../packages/agent/src/test.ts",

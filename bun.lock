@@ -51,6 +51,7 @@
       "dependencies": {
         "@elysiajs/cors": "^1.1.0",
         "@game-agent/agent": "workspace:*",
+        "@game-agent/perf": "workspace:*",
         "chokidar": "^3.6.0",
         "elysia": "^1.1.0",
         "nanoid": "^5.0.7",
@@ -59,6 +60,10 @@
     },
     "packages/agent": {
       "name": "@game-agent/agent",
+      "version": "0.0.0",
+    },
+    "packages/perf": {
+      "name": "@game-agent/perf",
       "version": "0.0.0",
     },
   },
@@ -186,6 +191,8 @@
     "@game-agent/agent": ["@game-agent/agent@workspace:packages/agent"],
 
     "@game-agent/client": ["@game-agent/client@workspace:apps/client"],
+
+    "@game-agent/perf": ["@game-agent/perf@workspace:packages/perf"],
 
     "@game-agent/server": ["@game-agent/server@workspace:apps/server"],
 

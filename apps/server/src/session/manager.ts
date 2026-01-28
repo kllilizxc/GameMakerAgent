@@ -2,6 +2,7 @@ import type { EngineId, ServerMessage } from "../protocol/messages"
 import { sessionId as genSessionId, runId as genRunId } from "../util/id"
 import { getEngine } from "../engine/registry"
 import { createWorkspace, deleteWorkspace, readWorkspaceFiles, workspacePath } from "./workspace"
+import { Perf } from "@game-agent/perf"
 
 interface RawSocket {
   send: (data: string) => void
@@ -74,6 +75,7 @@ export function removeSocket(session: Session, socket: RawSocket): void {
 }
 
 export function broadcast(session: Session, message: ServerMessage): void {
+  using timer = Perf.time("ws", "broadcast")
   const data = JSON.stringify(message)
   for (const socket of session.sockets) {
     socket.send(data)
@@ -89,6 +91,7 @@ export function ackSeq(session: Session, seq: number): void {
 }
 
 export async function getSnapshot(session: Session): Promise<Record<string, string>> {
+  using timer = Perf.time("file", "get-snapshot")
   return readWorkspaceFiles(session.id)
 }
 

@@ -2,6 +2,7 @@ import { mkdir, rm, readdir, readFile, writeFile, unlink, stat } from "node:fs/p
 import { join, relative } from "node:path"
 import type { FileMap } from "../engine/adapter"
 import type { FsPatchOp } from "../protocol/messages"
+import { Perf } from "@game-agent/perf"
 
 const WORKSPACES_DIR = join(process.cwd(), "workspaces")
 
@@ -14,6 +15,7 @@ export function workspacePath(sessionId: string): string {
 }
 
 export async function createWorkspace(sessionId: string, seed: FileMap): Promise<string> {
+  using timer = Perf.time("file", "create-workspace")
   const dir = workspacePath(sessionId)
   await mkdir(dir, { recursive: true })
 
@@ -30,11 +32,13 @@ export async function createWorkspace(sessionId: string, seed: FileMap): Promise
 }
 
 export async function deleteWorkspace(sessionId: string): Promise<void> {
+  using timer = Perf.time("file", "delete-workspace")
   const dir = workspacePath(sessionId)
   await rm(dir, { recursive: true, force: true })
 }
 
 export async function readWorkspaceFiles(sessionId: string): Promise<FileMap> {
+  using timer = Perf.time("file", "read-workspace")
   const dir = workspacePath(sessionId)
   const files: FileMap = {}
 
@@ -73,7 +77,7 @@ export async function applyPatchOps(sessionId: string, ops: FsPatchOp[]): Promis
         break
       }
       case "delete": {
-        await unlink(full).catch(() => {})
+        await unlink(full).catch(() => { })
         break
       }
       case "mkdir": {
