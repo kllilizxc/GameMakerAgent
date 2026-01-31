@@ -3,6 +3,13 @@ import { useFilesStore } from "./files"
 import type { Message, Activity, FsPatch, TemplateInfo } from "@/types/session"
 import { fetchTemplates } from "@/lib/api"
 
+interface SessionHistoryItem {
+  id: string
+  name: string
+  lastActive: number
+  templateId?: string
+}
+
 interface SessionState {
   sessionId: string | null
   engineId: string
@@ -15,11 +22,15 @@ interface SessionState {
   ws: WebSocket | null
   templates: TemplateInfo[]
   serverUrl: string | null
+  history: SessionHistoryItem[]
 
   connect: (serverUrl: string, engineId?: string) => void
   disconnect: () => void
   fetchTemplates: () => void
   createSession: (templateId: string) => void
+  resumeSession: (sessionId: string) => void
+  addToHistory: (sessionId: string, templateId?: string) => void
+  loadHistory: () => void
   leaveSession: () => void
   sendPrompt: (prompt: string) => void
   addMessage: (message: Message) => void
@@ -42,6 +53,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   ws: null,
   templates: [],
   serverUrl: null,
+
+  history: [],
 
   connect: (serverUrl: string, engineId = "phaser-2d") => {
     const { ws } = get()
@@ -96,16 +109,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   createSession: (templateId: string) => {
     const { connect } = get()
-    // Connect and pass templateId to be handled once connection is open
-    // We can't pass it directly to connect since connect is generic, 
-    // instead we should probably just connect then send message
-
-    // Better approach: connect, then set up a one-time listener or check readyState
     connect(useSessionStore.getState().serverUrl || "ws://localhost:3001")
-
-    // We need to wait for connection.
-    // Since connect() is sync (initiates connection), we can poll or use a listener.
-    // Actually, let's just make createSession async and wait for WS
 
     const checkConnection = setInterval(() => {
       const { ws } = get()
@@ -114,6 +118,66 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         ws.send(JSON.stringify({ type: "session/create", engineId: "phaser-2d", templateId }))
       }
     }, 100)
+  },
+
+  resumeSession: (sessionId: string) => {
+    const { connect } = get()
+    connect(useSessionStore.getState().serverUrl || "ws://localhost:3001")
+
+    const checkConnection = setInterval(() => {
+      const { ws } = get()
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        clearInterval(checkConnection)
+        ws.send(JSON.stringify({ type: "session/create", engineId: "phaser-2d", sessionId }))
+      }
+    }, 100)
+  },
+
+  addToHistory: (sessionId: string, templateId?: string) => {
+    set((state) => {
+      const existing = state.history.find((h) => h.id === sessionId)
+      let newHistory
+
+      if (existing) {
+        newHistory = state.history.map((h) =>
+          h.id === sessionId
+            ? { ...h, lastActive: Date.now() }
+            : h
+        )
+      } else {
+        const template = state.templates.find(t => t.id === templateId)
+        const name = template ? `${template.name} Session` : `Session ${sessionId.slice(0, 6)}`
+
+        newHistory = [
+          {
+            id: sessionId,
+            name,
+            lastActive: Date.now(),
+            templateId
+          },
+          ...state.history
+        ].slice(0, 10) // Keep last 10
+      }
+
+      // Sort by recency
+      newHistory.sort((a, b) => b.lastActive - a.lastActive)
+
+      // Save to local storage
+      localStorage.setItem("game-agent-history", JSON.stringify(newHistory))
+
+      return { history: newHistory }
+    })
+  },
+
+  loadHistory: () => {
+    try {
+      const stored = localStorage.getItem("game-agent-history")
+      if (stored) {
+        set({ history: JSON.parse(stored) })
+      }
+    } catch (e) {
+      console.error("Failed to load history", e)
+    }
   },
 
   leaveSession: () => {
@@ -243,6 +307,7 @@ function handleServerMessage(
 
     case "session/created":
       set({ sessionId: msg.sessionId as string })
+      useSessionStore.getState().addToHistory(msg.sessionId as string, msg.templateId as string | undefined)
       break
 
     case "agent/event": {

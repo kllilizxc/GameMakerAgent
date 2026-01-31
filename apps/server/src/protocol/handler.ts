@@ -53,7 +53,7 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
   switch (msg.type) {
 
     case "session/create": {
-      const session = await createSession(msg.engineId, msg.templateId)
+      const session = await createSession(msg.engineId, msg.templateId, msg.sessionId)
       ws.data.sessionId = session.id
       addSocket(session, ws.raw)
 

@@ -1,9 +1,16 @@
-import { TemplateInfo } from "@/types/session"
+import { useEffect } from "react"
 import { useSessionStore } from "@/stores/session"
 
 export function TemplateSelector() {
     const templates = useSessionStore((s) => s.templates)
     const createSession = useSessionStore((s) => s.createSession)
+    const resumeSession = useSessionStore((s) => s.resumeSession)
+    const history = useSessionStore((s) => s.history)
+    const loadHistory = useSessionStore((s) => s.loadHistory)
+
+    useEffect(() => {
+        loadHistory()
+    }, [loadHistory])
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-[#09090b] text-white p-8">
@@ -60,6 +67,47 @@ export function TemplateSelector() {
                         </button>
                     ))}
                 </div>
+
+                {history.length > 0 && (
+                    <div className="pt-8 border-t border-zinc-800">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-semibold text-zinc-300">Recent Sessions</h2>
+                            <button
+                                onClick={() => {
+                                    if (confirm("Clear session history?")) {
+                                        localStorage.removeItem("game-agent-history")
+                                        window.location.reload()
+                                    }
+                                }}
+                                className="text-xs text-zinc-500 hover:text-red-400 transition-colors"
+                            >
+                                Clear History
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {history.map((session) => (
+                                <div
+                                    key={session.id}
+                                    className="p-4 rounded-lg bg-zinc-900/30 border border-zinc-800 hover:border-zinc-700 transition-colors flex items-center justify-between group"
+                                >
+                                    <div>
+                                        <div className="font-medium text-zinc-200">{session.name}</div>
+                                        <div className="text-xs text-zinc-500 mt-1">
+                                            {new Date(session.lastActive).toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => resumeSession(session.id)}
+                                        className="px-3 py-1.5 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                        Resume
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     )

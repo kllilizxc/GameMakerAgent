@@ -54,6 +54,7 @@ export const SessionCreateRequest = z.object({
   type: z.literal("session/create"),
   engineId: EngineId,
   templateId: z.string().optional(),
+  sessionId: z.string().optional(),
 })
 export type SessionCreateRequest = z.infer<typeof SessionCreateRequest>
 

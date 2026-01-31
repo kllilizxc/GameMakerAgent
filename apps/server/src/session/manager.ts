@@ -22,8 +22,49 @@ export interface Session {
 
 const sessions = new Map<string, Session>()
 
-export async function createSession(engineId: EngineId, templateId?: string): Promise<Session> {
-  const id = genSessionId()
+import { stat } from "node:fs/promises"
+
+// ...
+
+export async function createSession(engineId: EngineId, templateId?: string, desiredSessionId?: string): Promise<Session> {
+  // 1. Try to resume if ID provided
+  if (desiredSessionId) {
+    // Check active sessions
+    const existing = sessions.get(desiredSessionId)
+    if (existing) {
+      console.log(`[session] Resuming active session ${desiredSessionId}`)
+      return existing
+    }
+
+    // Check if workspace exists on disk
+    const dir = workspacePath(desiredSessionId)
+    try {
+      await stat(dir)
+      // Workspace exists, rehydrate session
+      const id = desiredSessionId
+      console.log(`[session] Rehydrating session from disk ${id}`)
+
+      const session: Session = {
+        id,
+        engineId,
+        templateId, // Note: We might want to persist this in a metadata file later
+        workspaceDir: dir,
+        currentRunId: null,
+        seq: 0,
+        ackedSeq: 0,
+        sockets: new Set(),
+        createdAt: new Date(),
+      }
+      sessions.set(id, session)
+      return session
+    } catch {
+      // Workspace doesn't exist, proceed to create new
+      console.log(`[session] Desired session ${desiredSessionId} not found, creating new`)
+    }
+  }
+
+  // 2. Create new session
+  const id = desiredSessionId || genSessionId()
   const engine = getEngine(engineId)
   const seed = engine.templateSeed(templateId)
   const workspaceDir = await createWorkspace(id, seed)
