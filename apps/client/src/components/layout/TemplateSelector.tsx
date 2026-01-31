@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import { useSessionStore } from "@/stores/session"
+import { storage } from "@/lib/storage"
 
 export function TemplateSelector() {
     const templates = useSessionStore((s) => s.templates)
@@ -73,9 +74,9 @@ export function TemplateSelector() {
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-2xl font-semibold text-zinc-300">Recent Sessions</h2>
                             <button
-                                onClick={() => {
+                                onClick={async () => {
                                     if (confirm("Clear session history?")) {
-                                        localStorage.removeItem("game-agent-history")
+                                        await storage.clearHistory()
                                         window.location.reload()
                                     }
                                 }}

@@ -19,7 +19,36 @@ export function PromptHeader({
   subtitle = "Describe your game idea"
 }: PromptHeaderProps) {
   const [showConfirm, setShowConfirm] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editValue, setEditValue] = useState("")
+
+  const sessionId = useSessionStore((s) => s.sessionId)
+  const history = useSessionStore((s) => s.history)
   const leaveSession = useSessionStore((s) => s.leaveSession)
+  const updateSessionName = useSessionStore((s) => s.updateSessionName)
+
+  const currentSession = history.find((h) => h.id === sessionId)
+  const displayName = currentSession?.name || title
+
+  const handleStartEdit = () => {
+    setEditValue(displayName)
+    setIsEditing(true)
+  }
+
+  const handleSave = () => {
+    if (sessionId && editValue.trim()) {
+      updateSessionName(sessionId, editValue.trim())
+    }
+    setIsEditing(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSave()
+    } else if (e.key === "Escape") {
+      setIsEditing(false)
+    }
+  }
 
   return (
     <>
@@ -43,8 +72,26 @@ export function PromptHeader({
             <path d="m15 18-6-6 6-6" />
           </svg>
         </button>
-        <div>
-          <h1 className="text-lg font-semibold">{title}</h1>
+        <div className="flex-1">
+          {isEditing ? (
+            <input
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleSave}
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className="text-lg font-semibold bg-transparent border-b border-zinc-600 outline-none focus:border-blue-500 transition-colors w-full max-w-md"
+            />
+          ) : (
+            <h1
+              className="text-lg font-semibold cursor-pointer hover:text-blue-400 transition-colors"
+              onClick={handleStartEdit}
+              title="Click to edit session name"
+            >
+              {displayName}
+            </h1>
+          )}
           <p className="text-sm text-muted-foreground">{subtitle}</p>
         </div>
       </div>

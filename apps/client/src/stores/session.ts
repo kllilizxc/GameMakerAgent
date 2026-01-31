@@ -2,13 +2,7 @@ import { create } from "zustand"
 import { useFilesStore } from "./files"
 import type { Message, Activity, FsPatch, TemplateInfo } from "@/types/session"
 import { fetchTemplates } from "@/lib/api"
-
-interface SessionHistoryItem {
-  id: string
-  name: string
-  lastActive: number
-  templateId?: string
-}
+import { storage, type SessionHistoryItem } from "@/lib/storage"
 
 interface SessionState {
   sessionId: string | null
@@ -30,6 +24,7 @@ interface SessionState {
   createSession: (templateId: string) => void
   resumeSession: (sessionId: string) => void
   addToHistory: (sessionId: string, templateId?: string) => void
+  updateSessionName: (sessionId: string, name: string) => void
   loadHistory: () => void
   leaveSession: () => void
   sendPrompt: (prompt: string) => void
@@ -162,22 +157,30 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       // Sort by recency
       newHistory.sort((a, b) => b.lastActive - a.lastActive)
 
-      // Save to local storage
-      localStorage.setItem("game-agent-history", JSON.stringify(newHistory))
+      // Save via storage protocol
+      storage.saveHistory(newHistory)
 
       return { history: newHistory }
     })
   },
 
-  loadHistory: () => {
+  loadHistory: async () => {
     try {
-      const stored = localStorage.getItem("game-agent-history")
-      if (stored) {
-        set({ history: JSON.parse(stored) })
-      }
+      const history = await storage.getHistory()
+      set({ history })
     } catch (e) {
       console.error("Failed to load history", e)
     }
+  },
+
+  updateSessionName: (sessionId: string, name: string) => {
+    set((state) => {
+      const newHistory = state.history.map((h) =>
+        h.id === sessionId ? { ...h, name } : h
+      )
+      storage.saveHistory(newHistory)
+      return { history: newHistory }
+    })
   },
 
   leaveSession: () => {
