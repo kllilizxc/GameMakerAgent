@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { useFilesStore } from "./files"
-import type { Message, Activity, FsPatch } from "@/types/session"
+import type { Message, Activity, FsPatch, TemplateInfo } from "@/types/session"
 
 interface SessionState {
   sessionId: string | null
@@ -12,9 +12,11 @@ interface SessionState {
   sequence: number
   error: string | null
   ws: WebSocket | null
+  templates: TemplateInfo[]
 
   connect: (serverUrl: string, engineId?: string) => void
-  disconnect: () => void
+  fetchTemplates: () => void
+  createSession: (templateId: string) => void
   sendPrompt: (prompt: string) => void
   addMessage: (message: Message) => void
   updateStreamingMessage: (textId: string, text: string) => void
@@ -34,6 +36,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   sequence: 0,
   error: null,
   ws: null,
+  templates: [],
 
   connect: (serverUrl: string, engineId = "phaser-2d") => {
     const { ws } = get()
@@ -51,6 +54,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     socket.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data)
+        if (msg.type === "fs/snapshot" || msg.type === "session/created") {
+          console.log("[store] Received session-setting message:", msg.type, msg)
+        }
         handleServerMessage(msg, set, get)
       } catch (e) {
         console.error("Failed to parse message:", e)
@@ -70,16 +76,33 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { ws } = get()
     if (ws) {
       ws.close()
-      set({ ws: null, sessionId: null, status: "idle" })
+      set({ ws: null, sessionId: null, status: "idle", templates: [] })
+    }
+  },
+
+  fetchTemplates: async () => {
+    try {
+      const res = await fetch("http://localhost:3001/templates")
+      const data = await res.json()
+      set({ templates: (data as { templates: TemplateInfo[] }).templates })
+    } catch (e) {
+      console.error("Failed to fetch templates:", e)
+    }
+  },
+
+  createSession: (templateId: string) => {
+    const { ws, engineId } = get()
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "session/create", engineId, templateId }))
     }
   },
 
   sendPrompt: (prompt: string) => {
     const state = get()
     const { ws, sessionId, engineId, status } = state
-    
+
     console.log("[ws] sendPrompt called", { ws: !!ws, status, sessionId, prompt })
-    
+
     if (!ws) {
       console.error("[ws] No WebSocket connection")
       return
@@ -184,7 +207,7 @@ function handleServerMessage(
   _get: () => SessionState
 ) {
   console.log("[ws] handleServerMessage:", msg.type, msg)
-  
+
   switch (msg.type) {
     case "run/started":
       set({
@@ -193,9 +216,14 @@ function handleServerMessage(
       })
       break
 
+
+    case "session/created":
+      set({ sessionId: msg.sessionId as string })
+      break
+
     case "agent/event": {
       const event = msg.event as { type: string; data?: { text?: string; id?: string; tool?: string; title?: string; callId?: string } } | undefined
-      
+
       if (event?.type === "text-delta" && event.data?.text && event.data?.id) {
         // Streaming text chunk
         useSessionStore.getState().updateStreamingMessage(event.data.id, event.data.text)
@@ -216,14 +244,14 @@ function handleServerMessage(
             timestamp: existingIndex !== -1 ? s.activities[existingIndex].timestamp : s.sequence,
             data: { tool, title },
           }
-          
+
           if (existingIndex !== -1) {
             console.log("[ws] replacing existing activity at index:", existingIndex)
             const activities = [...s.activities]
             activities[existingIndex] = newActivity
             return { activities }
           }
-          
+
           return {
             activities: [...s.activities, newActivity],
             sequence: s.sequence + 1,
@@ -235,7 +263,7 @@ function handleServerMessage(
         console.log("[ws] tool completed:", tool, "callId:", callId)
         set((s) => {
           const existingIndex = s.activities.findIndex((a) => a.callId === callId)
-          
+
           if (existingIndex !== -1) {
             console.log("[ws] marking tool complete at index:", existingIndex)
             const activities = [...s.activities]
@@ -246,7 +274,7 @@ function handleServerMessage(
             }
             return { activities }
           }
-          
+
           console.log("[ws] tool completed but no matching start found, creating new activity")
           return {
             activities: [

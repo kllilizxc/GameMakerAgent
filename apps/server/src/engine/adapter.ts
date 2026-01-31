@@ -13,12 +13,20 @@ export interface EnginePreview {
   url: string
 }
 
+export interface TemplateInfo {
+  id: string
+  name: string
+  description: string
+  thumbnail?: string
+}
+
 export interface EngineAdapter {
   engineId: EngineId
   name: string
   capabilities: EngineCapabilities
   preview: EnginePreview
-  templateSeed(): FileMap
+  templateSeed(templateId?: string): FileMap
   validate?(files: FileMap): { ok: boolean; errors: string[] }
+  getTemplates?(): TemplateInfo[]
   systemPrompt?(): string
 }

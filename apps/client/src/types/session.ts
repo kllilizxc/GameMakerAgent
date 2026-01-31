@@ -25,3 +25,10 @@ export interface FsPatch {
   path: string
   content?: string
 }
+
+export interface TemplateInfo {
+  id: string
+  name: string
+  description: string
+  thumbnail?: string
+}

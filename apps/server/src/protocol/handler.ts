@@ -1,3 +1,4 @@
+import { getEngine } from "../engine/registry"
 import { ClientMessage } from "./messages"
 import {
   createSession,
@@ -50,6 +51,30 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
   msgTimer.stop({ messageType: msg.type })
 
   switch (msg.type) {
+
+    case "session/create": {
+      const session = await createSession(msg.engineId, msg.templateId)
+      ws.data.sessionId = session.id
+      addSocket(session, ws.raw)
+
+      ws.send({
+        type: "session/created",
+        sessionId: session.id,
+        engineId: msg.engineId,
+        templateId: msg.templateId,
+      })
+
+      const files = await getSnapshot(session)
+      ws.send({
+        type: "fs/snapshot",
+        sessionId: session.id,
+        seq: nextSeq(session),
+        files,
+      })
+      console.log(`[ws] created session ${session.id} with template ${msg.templateId}`)
+      break
+    }
+
     case "run/start": {
       // Session should already exist from connection
       const wsSessionId = ws.data.sessionId as string
@@ -156,20 +181,6 @@ export const wsHandler = {
   async open(ws: WsContext) {
     ws.data = { sessionId: "" }
     console.log(`[ws] client connected`)
-
-    // Create session and send initial snapshot immediately
-    const session = await createSession("phaser-2d")
-    ws.data.sessionId = session.id
-    addSocket(session, ws.raw)
-
-    const files = await getSnapshot(session)
-    ws.send({
-      type: "fs/snapshot",
-      sessionId: session.id,
-      seq: nextSeq(session),
-      files,
-    })
-    console.log(`[ws] sent initial snapshot with ${Object.keys(files).length} files`)
   },
 
   message(ws: WsContext, message: unknown) {

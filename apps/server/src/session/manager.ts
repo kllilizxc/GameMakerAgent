@@ -11,6 +11,7 @@ interface RawSocket {
 export interface Session {
   id: string
   engineId: EngineId
+  templateId?: string
   workspaceDir: string
   currentRunId: string | null
   seq: number
@@ -21,15 +22,16 @@ export interface Session {
 
 const sessions = new Map<string, Session>()
 
-export async function createSession(engineId: EngineId): Promise<Session> {
+export async function createSession(engineId: EngineId, templateId?: string): Promise<Session> {
   const id = genSessionId()
   const engine = getEngine(engineId)
-  const seed = engine.templateSeed()
+  const seed = engine.templateSeed(templateId)
   const workspaceDir = await createWorkspace(id, seed)
 
   const session: Session = {
     id,
     engineId,
+    templateId,
     workspaceDir,
     currentRunId: null,
     seq: 0,

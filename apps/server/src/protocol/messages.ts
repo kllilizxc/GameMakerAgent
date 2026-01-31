@@ -4,6 +4,14 @@ import { z } from "zod"
 export const EngineId = z.enum(["phaser-2d", "babylon-3d"])
 export type EngineId = z.infer<typeof EngineId>
 
+export const TemplateInfo = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  thumbnail: z.string().optional(),
+})
+export type TemplateInfo = z.infer<typeof TemplateInfo>
+
 // ============ Client -> Server ============
 
 export const RunStartMessage = z.object({
@@ -11,6 +19,7 @@ export const RunStartMessage = z.object({
   sessionId: z.string().nullish(),
   prompt: z.string(),
   engineId: EngineId.default("phaser-2d"),
+  templateId: z.string().optional(),
   options: z.record(z.unknown()).optional(),
 })
 export type RunStartMessage = z.infer<typeof RunStartMessage>
@@ -35,11 +44,25 @@ export const SnapshotRequestMessage = z.object({
 })
 export type SnapshotRequestMessage = z.infer<typeof SnapshotRequestMessage>
 
+export const TemplatesListRequest = z.object({
+  type: z.literal("templates/list"),
+  engineId: EngineId,
+})
+export type TemplatesListRequest = z.infer<typeof TemplatesListRequest>
+
+export const SessionCreateRequest = z.object({
+  type: z.literal("session/create"),
+  engineId: EngineId,
+  templateId: z.string().optional(),
+})
+export type SessionCreateRequest = z.infer<typeof SessionCreateRequest>
+
 export const ClientMessage = z.discriminatedUnion("type", [
   RunStartMessage,
   RunCancelMessage,
   FsAckMessage,
   SnapshotRequestMessage,
+  SessionCreateRequest,
 ])
 export type ClientMessage = z.infer<typeof ClientMessage>
 
@@ -52,6 +75,14 @@ export const RunStartedMessage = z.object({
   engineId: EngineId,
 })
 export type RunStartedMessage = z.infer<typeof RunStartedMessage>
+
+export const SessionCreatedMessage = z.object({
+  type: z.literal("session/created"),
+  sessionId: z.string(),
+  engineId: EngineId,
+  templateId: z.string().optional(),
+})
+export type SessionCreatedMessage = z.infer<typeof SessionCreatedMessage>
 
 export const AgentEventMessage = z.object({
   type: z.literal("agent/event"),
@@ -114,5 +145,6 @@ export const ServerMessage = z.discriminatedUnion("type", [
   FsSnapshotMessage,
   RunFinishedMessage,
   RunErrorMessage,
+  SessionCreatedMessage,
 ])
 export type ServerMessage = z.infer<typeof ServerMessage>
