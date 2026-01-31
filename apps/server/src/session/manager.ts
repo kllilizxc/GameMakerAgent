@@ -14,6 +14,8 @@ export interface Session {
   templateId?: string
   workspaceDir: string
   currentRunId: string | null
+  /** OpenCode's internal session ID for message history persistence */
+  opencodeSessionId?: string
   seq: number
   ackedSeq: number
   sockets: Set<RawSocket>

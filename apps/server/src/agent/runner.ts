@@ -99,8 +99,14 @@ export async function executeRun(
     const systemPrompt = engine.systemPrompt?.() ?? ""
 
     const agentTimer = Perf.time("agent", "llm-execute")
-    await run(workspaceDir, { prompt, system: systemPrompt }, (event) => {
+    // Pass opencode session ID if we have one from a previous run
+    await run(workspaceDir, { prompt, system: systemPrompt, sessionId: session.opencodeSessionId }, (event) => {
       if (ctx.aborted) return
+
+      // Capture opencode session ID when it's created/resumed
+      if (event.type === "session" && event.sessionId) {
+        session.opencodeSessionId = event.sessionId
+      }
 
       // Collect text for persistence
       if (event.type === "text" && (event.data as { text?: string })?.text) {
