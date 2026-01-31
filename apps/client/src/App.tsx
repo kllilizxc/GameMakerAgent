@@ -23,12 +23,7 @@ export function App() {
   useEffect(() => {
     // Fetch templates immediately
     fetchTemplates()
-
-    if (!hasConnected.current && !ws) {
-      hasConnected.current = true
-      connect(SERVER_URL)
-    }
-  }, [connect, ws, fetchTemplates])
+  }, [fetchTemplates])
 
   // Boot WebContainer and sync files
   useEffect(() => {

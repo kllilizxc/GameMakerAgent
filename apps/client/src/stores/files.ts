@@ -17,6 +17,7 @@ interface FilesState {
   selectFile: (path: string | null) => void
   getFileContent: (path: string) => string | undefined
   getFileList: () => string[]
+  reset: () => void
 }
 
 export const useFilesStore = create<FilesState>((set, get) => ({
@@ -66,5 +67,9 @@ export const useFilesStore = create<FilesState>((set, get) => ({
 
   getFileList: () => {
     return Array.from(get().files.keys()).sort()
+  },
+
+  reset: () => {
+    set({ files: new Map(), selectedFile: null, pendingPatches: [] })
   },
 }))

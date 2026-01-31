@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { useFilesStore } from "./files"
 import type { Message, Activity, FsPatch, TemplateInfo } from "@/types/session"
+import { fetchTemplates } from "@/lib/api"
 
 interface SessionState {
   sessionId: string | null
@@ -13,10 +14,13 @@ interface SessionState {
   error: string | null
   ws: WebSocket | null
   templates: TemplateInfo[]
+  serverUrl: string | null
 
   connect: (serverUrl: string, engineId?: string) => void
+  disconnect: () => void
   fetchTemplates: () => void
   createSession: (templateId: string) => void
+  leaveSession: () => void
   sendPrompt: (prompt: string) => void
   addMessage: (message: Message) => void
   updateStreamingMessage: (textId: string, text: string) => void
@@ -37,12 +41,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   error: null,
   ws: null,
   templates: [],
+  serverUrl: null,
 
   connect: (serverUrl: string, engineId = "phaser-2d") => {
     const { ws } = get()
     if (ws) ws.close()
 
-    set({ status: "connecting", engineId, error: null })
+    set({ status: "connecting", engineId, error: null, serverUrl })
 
     const socket = new WebSocket(`${serverUrl}/ws`)
 
@@ -76,25 +81,44 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { ws } = get()
     if (ws) {
       ws.close()
-      set({ ws: null, sessionId: null, status: "idle", templates: [] })
+      set({ ws: null, sessionId: null, status: "idle" })
     }
   },
 
   fetchTemplates: async () => {
     try {
-      const res = await fetch("http://localhost:3001/templates")
-      const data = await res.json()
-      set({ templates: (data as { templates: TemplateInfo[] }).templates })
+      const templates = await fetchTemplates()
+      set({ templates })
     } catch (e) {
       console.error("Failed to fetch templates:", e)
     }
   },
 
   createSession: (templateId: string) => {
-    const { ws, engineId } = get()
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "session/create", engineId, templateId }))
-    }
+    const { connect } = get()
+    // Connect and pass templateId to be handled once connection is open
+    // We can't pass it directly to connect since connect is generic, 
+    // instead we should probably just connect then send message
+
+    // Better approach: connect, then set up a one-time listener or check readyState
+    connect(useSessionStore.getState().serverUrl || "ws://localhost:3001")
+
+    // We need to wait for connection.
+    // Since connect() is sync (initiates connection), we can poll or use a listener.
+    // Actually, let's just make createSession async and wait for WS
+
+    const checkConnection = setInterval(() => {
+      const { ws } = get()
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        clearInterval(checkConnection)
+        ws.send(JSON.stringify({ type: "session/create", engineId: "phaser-2d", templateId }))
+      }
+    }, 100)
+  },
+
+  leaveSession: () => {
+    get().disconnect()
+    useFilesStore.getState().reset()
   },
 
   sendPrompt: (prompt: string) => {
