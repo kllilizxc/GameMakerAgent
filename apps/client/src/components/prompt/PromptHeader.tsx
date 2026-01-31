@@ -8,6 +8,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/Dialog"
+import { ThemeToggle } from "@/components/ui/ThemeToggle"
 
 interface PromptHeaderProps {
   title?: string
@@ -94,6 +95,7 @@ export function PromptHeader({
           )}
           <p className="text-sm text-muted-foreground">{subtitle}</p>
         </div>
+        <ThemeToggle />
       </div>
 
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>

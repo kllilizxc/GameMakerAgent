@@ -4,24 +4,25 @@ import { TemplateSelector } from "@/components/layout/TemplateSelector"
 import { useSessionStore } from "@/stores/session"
 import { useFilesStore } from "@/stores/files"
 import { useWebContainer } from "@/hooks/useWebContainer"
-
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:3001"
+import { useThemeStore } from "@/stores/theme"
 
 export function App() {
-  const connect = useSessionStore((s) => s.connect)
   const fetchTemplates = useSessionStore((s) => s.fetchTemplates)
   const sessionId = useSessionStore((s) => s.sessionId)
-  const ws = useSessionStore((s) => s.ws)
   const files = useFilesStore((s) => s.files)
-  const hasConnected = useRef(false)
   const hasBooted = useRef(false)
   const prevFilesRef = useRef<Map<string, string>>(new Map())
+  const loadTheme = useThemeStore((s) => s.loadTheme)
 
   const { boot, writeFiles, installDeps, startDevServer, applyFilePatch } = useWebContainer()
 
-  // Connect to server
+  // Load theme on mount
   useEffect(() => {
-    // Fetch templates immediately
+    loadTheme()
+  }, [loadTheme])
+
+  // Fetch templates on mount
+  useEffect(() => {
     fetchTemplates()
   }, [fetchTemplates])
 

@@ -18,9 +18,8 @@ export function MessageItem({ message }: MessageItemProps) {
         "rounded-lg px-4 py-3 text-sm",
         message.role === "user"
           ? "bg-primary text-primary-foreground ml-8"
-          : "mr-8 prose prose-sm prose-invert max-w-none"
+          : "bg-secondary mr-8 prose prose-sm prose-invert max-w-none"
       )}
-      style={{ backgroundColor: isAgent ? "hsl(220 14% 18%)" : undefined }}
     >
       {isAgent ? (
         <NodeRenderer

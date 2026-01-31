@@ -186,6 +186,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   leaveSession: () => {
     get().disconnect()
     useFilesStore.getState().reset()
+    // Clear session state to prevent duplicates on re-entry
+    set({ messages: [], activities: [], streamingMessageId: null, sequence: 0 })
   },
 
   sendPrompt: (prompt: string) => {
@@ -213,7 +215,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         id: crypto.randomUUID(),
         role: "user",
         content: prompt,
-        timestamp: s.sequence,
+        timestamp: Date.now(),
       }
       return {
         messages: [...s.messages, userMsg],
@@ -254,7 +256,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         role: "agent",
         content: text,
         streaming: true,
-        timestamp: s.sequence,
+        timestamp: Date.now(),
       }
       return {
         messages: [...s.messages, newMsg],
@@ -280,7 +282,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         {
           ...activity,
           id: crypto.randomUUID(),
-          timestamp: s.sequence,
+          timestamp: Date.now(),
         },
       ],
       sequence: s.sequence + 1,
@@ -427,7 +429,7 @@ function handleServerMessage(
         useFilesStore.getState().setSnapshot(snapshot)
       }
 
-      // Load persisted messages
+      // Load persisted messages - prepend to any existing messages
       if (persistedMessages && persistedMessages.length > 0) {
         console.log("[ws] loading", persistedMessages.length, "persisted messages")
         const loadedMessages = persistedMessages.map((pm, idx) => ({
@@ -437,7 +439,10 @@ function handleServerMessage(
           streaming: false,
           timestamp: pm.timestamp,
         }))
-        set({ messages: loadedMessages })
+        // Get current messages and filter out any that were sent before snapshot arrived
+        const currentMessages = useSessionStore.getState().messages
+        // Prepend history to any new messages that may have been added
+        set({ messages: [...loadedMessages, ...currentMessages] })
       }
       break
     }

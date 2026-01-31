@@ -5,6 +5,6 @@
     }
 
     .markstream-react {
-        --secondary: 100 24% 28%;
+        --secondary: var(--secondary);
     }
 }
