@@ -5,6 +5,7 @@ import type { Session } from "../session/manager"
 import { broadcast, nextSeq, getWorkspacePath, finishRun } from "../session/manager"
 import { getEngine } from "../engine/registry"
 import type { FsPatchOp, AgentEventMessage, FsPatchMessage } from "../protocol/messages"
+import { appendMessage } from "../session/workspace"
 import { Perf } from "@game-agent/perf"
 
 interface RunContext {
@@ -25,6 +26,9 @@ export async function executeRun(
 
   const workspaceDir = getWorkspacePath(session)
   const engine = getEngine(session.engineId)
+
+  // Collect agent response text
+  let agentResponseText = ""
 
   const watcher = watch(workspaceDir, {
     ignored: /(^|[\/\\])(\.|node_modules|\.git)/,
@@ -98,6 +102,11 @@ export async function executeRun(
     await run(workspaceDir, { prompt, system: systemPrompt }, (event) => {
       if (ctx.aborted) return
 
+      // Collect text for persistence
+      if (event.type === "text" && (event.data as { text?: string })?.text) {
+        agentResponseText += (event.data as { text: string }).text
+      }
+
       const msg: AgentEventMessage = {
         type: "agent/event",
         sessionId: session.id,
@@ -113,6 +122,15 @@ export async function executeRun(
     agentTimer.stop()
 
     flushPatches()
+
+    // Persist agent response
+    if (agentResponseText.trim()) {
+      await appendMessage(session.id, {
+        role: "agent",
+        content: agentResponseText,
+        timestamp: Date.now(),
+      })
+    }
 
     broadcast(session, {
       type: "run/finished",

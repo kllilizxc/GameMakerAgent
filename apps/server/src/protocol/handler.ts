@@ -12,6 +12,7 @@ import {
   broadcast,
 } from "../session/manager"
 import { executeRun, cancelRun } from "../agent/runner"
+import { appendMessage, loadMessages } from "../session/workspace"
 import { Perf } from "@game-agent/perf"
 
 interface WsContext {
@@ -65,13 +66,16 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
       })
 
       const files = await getSnapshot(session)
+      const messages = await loadMessages(session.id)
+
       ws.send({
         type: "fs/snapshot",
         sessionId: session.id,
         seq: nextSeq(session),
         files,
+        messages,
       })
-      console.log(`[ws] created session ${session.id} with template ${msg.templateId}`)
+      console.log(`[ws] created session ${session.id} with template ${msg.templateId}, ${messages.length} messages loaded`)
       break
     }
 
@@ -102,6 +106,13 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
       }
 
       const runId = startRun(session)
+
+      // Persist user message
+      await appendMessage(session.id, {
+        role: "user",
+        content: msg.prompt,
+        timestamp: Date.now(),
+      })
 
       ws.send({
         type: "run/started",

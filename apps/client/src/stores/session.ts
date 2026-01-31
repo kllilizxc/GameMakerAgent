@@ -417,12 +417,27 @@ function handleServerMessage(
 
     case "fs/snapshot": {
       const snapshot = msg.files as Record<string, string> | undefined
+      const persistedMessages = msg.messages as Array<{ role: "user" | "agent"; content: string; timestamp: number }> | undefined
+
       if (snapshot) {
         const receivedSessionId = msg.sessionId as string
         console.log("[ws] received snapshot:", Object.keys(snapshot).length, "files, sessionId:", receivedSessionId)
         // Store sessionId from snapshot
         set({ sessionId: receivedSessionId })
         useFilesStore.getState().setSnapshot(snapshot)
+      }
+
+      // Load persisted messages
+      if (persistedMessages && persistedMessages.length > 0) {
+        console.log("[ws] loading", persistedMessages.length, "persisted messages")
+        const loadedMessages = persistedMessages.map((pm, idx) => ({
+          id: `restored-${idx}`,
+          role: pm.role,
+          content: pm.content,
+          streaming: false,
+          timestamp: pm.timestamp,
+        }))
+        set({ messages: loadedMessages })
       }
       break
     }

@@ -90,3 +90,35 @@ export async function applyPatchOps(sessionId: string, ops: FsPatchOp[]): Promis
     }
   }
 }
+
+// Message history persistence
+const MESSAGES_FILE = ".agent/messages.json"
+
+export interface PersistedMessage {
+  role: "user" | "agent"
+  content: string
+  timestamp: number
+}
+
+export async function saveMessages(sessionId: string, messages: PersistedMessage[]): Promise<void> {
+  const dir = workspacePath(sessionId)
+  const messagesDir = join(dir, ".agent")
+  await mkdir(messagesDir, { recursive: true })
+  await writeFile(join(dir, MESSAGES_FILE), JSON.stringify(messages, null, 2), "utf-8")
+}
+
+export async function loadMessages(sessionId: string): Promise<PersistedMessage[]> {
+  const dir = workspacePath(sessionId)
+  try {
+    const content = await readFile(join(dir, MESSAGES_FILE), "utf-8")
+    return JSON.parse(content)
+  } catch {
+    return []
+  }
+}
+
+export async function appendMessage(sessionId: string, message: PersistedMessage): Promise<void> {
+  const messages = await loadMessages(sessionId)
+  messages.push(message)
+  await saveMessages(sessionId, messages)
+}
