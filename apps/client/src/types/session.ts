@@ -4,6 +4,17 @@ export interface Message {
   content: string
   streaming?: boolean
   timestamp: number
+  metadata?: {
+    summary?: {
+      id: string
+      tool: string
+      state: {
+        status: string
+        title?: string
+      }
+    }[]
+    [key: string]: any
+  }
 }
 
 export interface Activity {

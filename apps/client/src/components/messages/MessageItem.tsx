@@ -4,6 +4,8 @@ import { NodeRenderer } from "markstream-react"
 import "markstream-react/index.css"
 import "./MessageItem.scss"
 
+import { TaskSteps } from "./TaskSteps"
+
 interface MessageItemProps {
   message: Message
 }
@@ -21,14 +23,20 @@ export function MessageItem({ message }: MessageItemProps) {
           : "bg-secondary mr-8 prose prose-sm prose-invert max-w-none"
       )}
     >
-      {isAgent ? (
-        <NodeRenderer
-          content={message.content}
-          final={!message.streaming}
-        />
-      ) : (
-        message.content
-      )}
+      <div className="flex flex-col gap-2">
+        {message.metadata?.summary && (
+          <TaskSteps steps={message.metadata.summary} />
+        )}
+        {isAgent ? (
+          <NodeRenderer
+            content={message.content}
+            final={!message.streaming}
+          />
+        ) : (
+          message.content
+        )}
+      </div>
     </div>
   )
 }
+
