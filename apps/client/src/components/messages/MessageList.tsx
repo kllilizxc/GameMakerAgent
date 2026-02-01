@@ -4,8 +4,8 @@ import { useSessionStore } from "@/stores/session"
 import { Loader2 } from "lucide-react"
 import type { Message } from "@/types/session"
 import { useMessageTimeline } from "@/hooks/useMessageTimeline"
-import { useInfiniteLoader } from "@/hooks/useInfiniteLoader"
-import { useScrollRestoration } from "@/hooks/useScrollRestoration"
+import InfiniteScroll from "react-infinite-scroller"
+import { useRef } from "react"
 
 interface MessageListProps {
   messages: Message[]
@@ -23,23 +23,8 @@ export function MessageList({ messages }: MessageListProps) {
   // 1. Timeline Management
   const timeline = useMessageTimeline(messages, activities)
 
-  // 2. Scroll Restoration
-  const { setScrollContainer, captureScroll } = useScrollRestoration([messages])
-
-  // 3. Infinite Loading
-  const handleLoadMore = () => {
-    // Ensure scroll restoration knows about the container
-    // We get the ref from infinite loader, but need to pass it to restoration
-    setScrollContainer(scrollParentRef.current)
-    captureScroll()
-    loadMoreMessages()
-  }
-
-  const { setTarget, scrollParentRef } = useInfiniteLoader(
-    handleLoadMore,
-    hasMoreMessages && !isLoadingMore && messagesFirstLoaded,
-    { threshold: 0.1 }
-  )
+  // Ref for scroll parent
+  const scrollParentRef = useRef<HTMLDivElement | null>(null)
 
   const validMessages = messages.filter((msg) => msg.content.trim().length > 0)
 
@@ -53,19 +38,33 @@ export function MessageList({ messages }: MessageListProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {hasMoreMessages && (
-        <div ref={setTarget} className="flex justify-center py-2 h-8">
-          {<Loader2 size={16} className="animate-spin text-muted-foreground" />}
-        </div>
-      )}
-      {timeline.map((item) =>
-        item.type === "message" ? (
-          <MessageItem key={item.data.id} message={item.data} />
-        ) : (
-          <ActivityItem key={item.data.id} activity={item.data} />
-        )
-      )}
+    <div className="space-y-4" ref={scrollParentRef}>
+      <InfiniteScroll
+        pageStart={0}
+        loadMore={() => {
+          if (!isLoadingMore && messagesFirstLoaded) {
+            loadMoreMessages()
+          }
+        }}
+        hasMore={hasMoreMessages}
+        loader={
+          <div className="flex justify-center py-2 h-8" key="loader">
+            <Loader2 size={16} className="animate-spin text-muted-foreground" />
+          </div>
+        }
+        isReverse={true}
+        useWindow={false}
+        getScrollParent={() => scrollParentRef.current?.parentElement || null}
+        className="space-y-4"
+      >
+        {timeline.map((item) =>
+          item.type === "message" ? (
+            <MessageItem key={item.data.id} message={item.data} />
+          ) : (
+            <ActivityItem key={item.data.id} activity={item.data} />
+          )
+        )}
+      </InfiniteScroll>
 
       {status === "running" && activities.length === 0 && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
