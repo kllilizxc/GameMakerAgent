@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef } from "react"
+import { useState } from "react"
 import { useSessionStore } from "@/stores/session"
 import { usePromptSubmit } from "@/hooks/usePromptSubmit"
 import { PromptHeader } from "@/components/prompt/PromptHeader"
 import { PromptInput } from "@/components/prompt/PromptInput"
 import { MobilePromptPanel } from "@/components/prompt/MobilePromptPanel"
 import { MessageList } from "@/components/messages/MessageList"
+import { useScrollToBottom } from "@/hooks/useScrollToBottom"
 
 interface PromptPanelProps {
   mobile?: boolean
@@ -21,22 +22,7 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
     isDisabled: isLoading,
   })
 
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [latestMessageTimestamp, setLatestMessageTimestamp] = useState(0)
-
-  useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-
-    const container = el.parentElement
-    if (!container) return
-
-    const latestMessage = messages[messages.length - 1]
-    if (latestMessage && latestMessage.timestamp > latestMessageTimestamp) {
-      setLatestMessageTimestamp(latestMessage.timestamp)
-      el.scrollIntoView({ behavior: "instant" })
-    }
-  }, [messages, activities])
+  const { scrollRef, bottomRef, handleScroll, isInitialScrollDone } = useScrollToBottom({ messages, activities })
 
   // Mobile layout
   if (mobile) {
@@ -59,9 +45,13 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
       <PromptHeader />
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 custom-scrollbar">
-        <MessageList messages={messages} />
-        <div ref={scrollRef} />
+      <div
+        className="flex-1 overflow-y-auto overflow-x-hidden p-4 custom-scrollbar"
+        ref={scrollRef}
+        onScroll={handleScroll}
+      >
+        <MessageList messages={messages} isReady={isInitialScrollDone} />
+        <div ref={bottomRef} className="h-px" />
       </div>
 
       {/* Input */}

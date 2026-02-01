@@ -4,7 +4,7 @@
         margin: 0;
     }
 
-    .markstream-react {
-        --secondary: var(--secondary);
+    .inline-code {
+        background-color: hsl(var(--code-background));
     }
 }

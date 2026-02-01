@@ -3,6 +3,7 @@ import type { Message } from "@/types/session"
 import { NodeRenderer } from "markstream-react"
 import { TaskSteps } from "./TaskSteps"
 import { TodoList } from "./TodoList"
+import "./MessageItem.scss"
 
 interface MessageItemProps {
   message: Message

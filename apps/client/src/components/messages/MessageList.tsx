@@ -9,9 +9,10 @@ import { useRef } from "react"
 
 interface MessageListProps {
   messages: Message[]
+  isReady?: boolean
 }
 
-export function MessageList({ messages }: MessageListProps) {
+export function MessageList({ messages, isReady = true }: MessageListProps) {
   const activities = useSessionStore((s) => s.activities)
   const status = useSessionStore((s) => s.status)
 
@@ -41,11 +42,11 @@ export function MessageList({ messages }: MessageListProps) {
       <InfiniteScroll
         pageStart={0}
         loadMore={() => {
-          if (!isLoadingMore) {
+          if (!isLoadingMore && isReady) {
             loadMoreMessages()
           }
         }}
-        hasMore={hasMoreMessages}
+        hasMore={isReady && hasMoreMessages}
         loader={
           <div className="flex justify-center py-2 h-8" key="loader">
             <Loader2 size={16} className="animate-spin text-muted-foreground" />

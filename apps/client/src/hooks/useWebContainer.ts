@@ -20,6 +20,7 @@ async function getWebContainer(): Promise<WebContainer> {
 export function useWebContainer() {
   const [isReady, setIsReady] = useState(false)
   const serverProcessRef = useRef<{ kill: () => void } | null>(null)
+  const installProcessRef = useRef<{ kill: () => void } | null>(null)
   const { files, applyPatch } = useFilesStore()
   const { setUrl, setStatus, setError, addLog } = usePreviewStore()
 
@@ -72,6 +73,7 @@ export function useWebContainer() {
     addLog("log", "Installing dependencies...")
 
     const installProcess = await wc.spawn("npm", ["install"])
+    installProcessRef.current = installProcess
 
     installProcess.output.pipeTo(
       new WritableStream({
@@ -82,6 +84,7 @@ export function useWebContainer() {
     )
 
     const exitCode = await installProcess.exit
+    installProcessRef.current = null
 
     if (exitCode !== 0) {
       setError("Failed to install dependencies")
@@ -163,6 +166,10 @@ export function useWebContainer() {
     if (serverProcessRef.current) {
       serverProcessRef.current.kill()
       serverProcessRef.current = null
+    }
+    if (installProcessRef.current) {
+      installProcessRef.current.kill()
+      installProcessRef.current = null
     }
     setUrl(null)
     setStatus("idle")

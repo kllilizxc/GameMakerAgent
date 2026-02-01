@@ -1,10 +1,70 @@
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { PromptPanel } from "./PromptPanel"
 import { WorkspaceArea } from "./WorkspaceArea"
+import { useWebContainer } from "@/hooks/useWebContainer"
+import { useFilesStore } from "@/stores/files"
 
 export function AppShell() {
   const [isMobile, setIsMobile] = useState(false)
+  const files = useFilesStore((s) => s.files)
+  const hasBooted = useRef(false)
+  const prevFilesRef = useRef<Map<string, string>>(new Map())
+
+  const { boot, writeFiles, installDeps, startDevServer, applyFilePatch } = useWebContainer()
+
+  // Boot WebContainer and sync files
+  useEffect(() => {
+    // Only boot if we have files (snapshot received)
+    if (files.size === 0) return
+
+    const syncFiles = async () => {
+      // First time - boot and write all files
+      if (!hasBooted.current) {
+        hasBooted.current = true
+        console.log("[wc] Booting WebContainer...")
+        await boot()
+
+        const fileObj: Record<string, string> = {}
+        files.forEach((content, path) => {
+          fileObj[path] = content
+        })
+
+        console.log("[wc] Writing initial files:", Object.keys(fileObj).length)
+        await writeFiles(fileObj)
+
+        console.log("[wc] Installing deps...")
+        await installDeps()
+
+        console.log("[wc] Starting dev server...")
+        await startDevServer()
+
+        prevFilesRef.current = new Map(files)
+        return
+      }
+
+      // Subsequent changes - apply patches
+      const prev = prevFilesRef.current
+
+      for (const [path, content] of files) {
+        if (prev.get(path) !== content) {
+          console.log("[wc] Applying patch:", path)
+          await applyFilePatch({ op: "write", path, content })
+        }
+      }
+
+      for (const path of prev.keys()) {
+        if (!files.has(path)) {
+          console.log("[wc] Deleting:", path)
+          await applyFilePatch({ op: "delete", path })
+        }
+      }
+
+      prevFilesRef.current = new Map(files)
+    }
+
+    syncFiles()
+  }, [files, boot, writeFiles, installDeps, startDevServer, applyFilePatch])
 
   // Check for mobile on mount and resize
   if (typeof window !== "undefined") {
