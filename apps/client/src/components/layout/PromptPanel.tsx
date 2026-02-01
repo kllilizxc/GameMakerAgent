@@ -35,9 +35,7 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
     if (latestMessage && latestMessage.timestamp > latestMessageTimestamp) {
       setLatestMessageTimestamp(latestMessage.timestamp)
       el.scrollIntoView({ behavior: "instant" })
-      setTimeout(() => {
-        setMessagesFirstLoaded()
-      }, 500)
+      setMessagesFirstLoaded()
     }
   }, [messages, activities])
 
@@ -62,7 +60,7 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
       <PromptHeader />
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 custom-scrollbar">
         <MessageList messages={messages} />
         <div ref={scrollRef} />
       </div>
