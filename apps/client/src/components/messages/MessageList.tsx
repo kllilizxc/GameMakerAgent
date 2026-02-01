@@ -18,7 +18,6 @@ export function MessageList({ messages }: MessageListProps) {
   const loadMoreMessages = useSessionStore((s) => s.loadMoreMessages)
   const hasMoreMessages = useSessionStore((s) => s.hasMoreMessages)
   const isLoadingMore = useSessionStore((s) => s.isLoadingMore)
-  const messagesFirstLoaded = useSessionStore((s) => s.messagesFirstLoaded)
 
   // 1. Timeline Management
   const timeline = useMessageTimeline(messages, activities)
@@ -42,7 +41,7 @@ export function MessageList({ messages }: MessageListProps) {
       <InfiniteScroll
         pageStart={0}
         loadMore={() => {
-          if (!isLoadingMore && messagesFirstLoaded) {
+          if (!isLoadingMore) {
             loadMoreMessages()
           }
         }}

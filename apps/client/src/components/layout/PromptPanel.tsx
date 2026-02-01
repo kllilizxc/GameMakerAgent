@@ -12,7 +12,7 @@ interface PromptPanelProps {
 
 export function PromptPanel({ mobile }: PromptPanelProps) {
   const [expanded, setExpanded] = useState(!mobile)
-  const { status, messages, activities, sendPrompt, setMessagesFirstLoaded } = useSessionStore()
+  const { status, messages, activities, sendPrompt } = useSessionStore()
 
   const isLoading = status === "running"
 
@@ -35,7 +35,6 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
     if (latestMessage && latestMessage.timestamp > latestMessageTimestamp) {
       setLatestMessageTimestamp(latestMessage.timestamp)
       el.scrollIntoView({ behavior: "instant" })
-      setMessagesFirstLoaded()
     }
   }, [messages, activities])
 

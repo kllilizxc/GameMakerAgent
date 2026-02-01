@@ -21,7 +21,6 @@ interface SessionState {
   history: SessionHistoryItem[]
   isLoadingMore: boolean
   hasMoreMessages: boolean
-  messagesFirstLoaded: boolean
 
   connect: (serverUrl: string, engineId?: string) => void
   loadMoreMessages: () => void
@@ -40,7 +39,6 @@ interface SessionState {
   addActivity: (activity: Omit<Activity, "id" | "timestamp">) => void
   clearActivities: () => void
   setStatus: (status: SessionState["status"]) => void
-  setMessagesFirstLoaded: () => void
 }
 
 export const useSessionStore = create<SessionState>()(
@@ -61,7 +59,6 @@ export const useSessionStore = create<SessionState>()(
       history: [],
       isLoadingMore: false,
       hasMoreMessages: true,
-      messagesFirstLoaded: false,
 
       connect: (serverUrl: string, engineId = "phaser-2d") => {
         const { ws } = get()
@@ -304,10 +301,6 @@ export const useSessionStore = create<SessionState>()(
       clearActivities: () => set({ activities: [] }),
 
       setStatus: (status) => set({ status }),
-
-      setMessagesFirstLoaded() {
-        set({ messagesFirstLoaded: true })
-      },
 
       loadMoreMessages: () => {
         console.log("Loading more messages...")
