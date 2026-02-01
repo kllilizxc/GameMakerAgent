@@ -13,6 +13,12 @@ export interface Message {
         title?: string
       }
     }[]
+    todos?: {
+      id: string
+      content: string
+      status: string
+      priority: string
+    }[]
     [key: string]: any
   }
 }

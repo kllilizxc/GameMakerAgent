@@ -3,6 +3,8 @@ import { useFilesStore } from "./files"
 import type { Message, Activity, FsPatch, TemplateInfo } from "@/types/session"
 import { fetchTemplates } from "@/lib/api"
 import { storage, type SessionHistoryItem } from "@/lib/storage"
+import { devtools } from "zustand/middleware"
+import { MSG_PAGE_SIZE_DEFAULT } from "@game-agent/common"
 
 interface SessionState {
   sessionId: string | null
@@ -17,8 +19,12 @@ interface SessionState {
   templates: TemplateInfo[]
   serverUrl: string | null
   history: SessionHistoryItem[]
+  isLoadingMore: boolean
+  hasMoreMessages: boolean
+  messagesFirstLoaded: boolean
 
   connect: (serverUrl: string, engineId?: string) => void
+  loadMoreMessages: () => void
   disconnect: () => void
   fetchTemplates: () => void
   createSession: (templateId: string) => void
@@ -34,265 +40,304 @@ interface SessionState {
   addActivity: (activity: Omit<Activity, "id" | "timestamp">) => void
   clearActivities: () => void
   setStatus: (status: SessionState["status"]) => void
+  setMessagesFirstLoaded: () => void
 }
 
-export const useSessionStore = create<SessionState>((set, get) => ({
-  sessionId: null,
-  engineId: "phaser-2d",
-  status: "idle",
-  messages: [],
-  activities: [],
-  streamingMessageId: null,
-  sequence: 0,
-  error: null,
-  ws: null,
-  templates: [],
-  serverUrl: null,
-
-  history: [],
-
-  connect: (serverUrl: string, engineId = "phaser-2d") => {
-    const { ws } = get()
-    if (ws) ws.close()
-
-    set({ status: "connecting", engineId, error: null, serverUrl })
-
-    const socket = new WebSocket(`${serverUrl}/ws`)
-
-    socket.onopen = () => {
-      set({ ws: socket, status: "idle" })
-      console.log("[ws] connected to server")
-    }
-
-    socket.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data)
-        if (msg.type === "fs/snapshot" || msg.type === "session/created") {
-          console.log("[store] Received session-setting message:", msg.type, msg)
-        }
-        handleServerMessage(msg, set, get)
-      } catch (e) {
-        console.error("Failed to parse message:", e)
-      }
-    }
-
-    socket.onerror = () => {
-      set({ status: "error", error: "Connection failed" })
-    }
-
-    socket.onclose = () => {
-      set({ ws: null, status: "idle" })
-    }
-  },
-
-  disconnect: () => {
-    const { ws } = get()
-    if (ws) {
-      ws.close()
-      set({ ws: null, sessionId: null, status: "idle" })
-    }
-  },
-
-  fetchTemplates: async () => {
-    try {
-      const templates = await fetchTemplates()
-      set({ templates })
-    } catch (e) {
-      console.error("Failed to fetch templates:", e)
-    }
-  },
-
-  createSession: (templateId: string) => {
-    const { connect } = get()
-    connect(useSessionStore.getState().serverUrl || "ws://localhost:3001")
-
-    const checkConnection = setInterval(() => {
-      const { ws } = get()
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        clearInterval(checkConnection)
-        ws.send(JSON.stringify({ type: "session/create", engineId: "phaser-2d", templateId }))
-      }
-    }, 100)
-  },
-
-  resumeSession: (sessionId: string) => {
-    const { connect } = get()
-    connect(useSessionStore.getState().serverUrl || "ws://localhost:3001")
-
-    const checkConnection = setInterval(() => {
-      const { ws } = get()
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        clearInterval(checkConnection)
-        ws.send(JSON.stringify({ type: "session/create", engineId: "phaser-2d", sessionId }))
-      }
-    }, 100)
-  },
-
-  addToHistory: (sessionId: string, templateId?: string) => {
-    set((state) => {
-      const existing = state.history.find((h) => h.id === sessionId)
-      let newHistory
-
-      if (existing) {
-        newHistory = state.history.map((h) =>
-          h.id === sessionId
-            ? { ...h, lastActive: Date.now() }
-            : h
-        )
-      } else {
-        const template = state.templates.find(t => t.id === templateId)
-        const name = template ? `${template.name} Session` : `Session ${sessionId.slice(0, 6)}`
-
-        newHistory = [
-          {
-            id: sessionId,
-            name,
-            lastActive: Date.now(),
-            templateId
-          },
-          ...state.history
-        ].slice(0, 10) // Keep last 10
-      }
-
-      // Sort by recency
-      newHistory.sort((a, b) => b.lastActive - a.lastActive)
-
-      // Save via storage protocol
-      storage.saveHistory(newHistory)
-
-      return { history: newHistory }
-    })
-  },
-
-  loadHistory: async () => {
-    try {
-      const history = await storage.getHistory()
-      set({ history })
-    } catch (e) {
-      console.error("Failed to load history", e)
-    }
-  },
-
-  updateSessionName: (sessionId: string, name: string) => {
-    set((state) => {
-      const newHistory = state.history.map((h) =>
-        h.id === sessionId ? { ...h, name } : h
-      )
-      storage.saveHistory(newHistory)
-      return { history: newHistory }
-    })
-  },
-
-  leaveSession: () => {
-    get().disconnect()
-    useFilesStore.getState().reset()
-    // Clear session state to prevent duplicates on re-entry
-    set({ messages: [], activities: [], streamingMessageId: null, sequence: 0 })
-  },
-
-  sendPrompt: (prompt: string) => {
-    const state = get()
-    const { ws, sessionId, engineId, status } = state
-
-    console.log("[ws] sendPrompt called", { ws: !!ws, status, sessionId, prompt })
-
-    if (!ws) {
-      console.error("[ws] No WebSocket connection")
-      return
-    }
-    if (status === "running") {
-      console.log("[ws] Already running, ignoring prompt")
-      return
-    }
-    if (!sessionId) {
-      console.error("[ws] No sessionId available. Session not initialized.")
-      return
-    }
-
-    // Add user message
-    set((s) => {
-      const userMsg: Message = {
-        id: crypto.randomUUID(),
-        role: "user",
-        content: prompt,
-        timestamp: Date.now(),
-      }
-      return {
-        messages: [...s.messages, userMsg],
-        sequence: s.sequence + 1,
-      }
-    })
-
-    // Send to server
-    const message = {
-      type: "run/start",
-      sessionId,
-      engineId,
-      prompt,
-    }
-    console.log("[ws] Sending message:", message)
-    ws.send(JSON.stringify(message))
-  },
-
-  addMessage: (message: Message) => {
-    set((s) => ({ messages: [...s.messages, message] }))
-  },
-
-  updateStreamingMessage: (textId: string, text: string) => {
-    set((s) => {
-      // Check if message with this textId already exists
-      const existing = s.messages.find((m) => m.id === textId)
-      if (existing) {
-        return {
-          messages: s.messages.map((m) =>
-            m.id === textId ? { ...m, content: text, streaming: true } : m
-          ),
-          streamingMessageId: textId,
-        }
-      }
-      // Create new message
-      const newMsg: Message = {
-        id: textId,
-        role: "agent",
-        content: text,
-        streaming: true,
-        timestamp: Date.now(),
-      }
-      return {
-        messages: [...s.messages, newMsg],
-        streamingMessageId: textId,
-        sequence: s.sequence + 1,
-      }
-    })
-  },
-
-  finalizeStreamingMessage: () => {
-    set((s) => ({
-      messages: s.messages.map((m) =>
-        m.id === s.streamingMessageId ? { ...m, streaming: false } : m
-      ),
+export const useSessionStore = create<SessionState>()(
+  devtools(
+    (set, get) => ({
+      sessionId: null,
+      engineId: "phaser-2d",
+      status: "idle",
+      messages: [],
+      activities: [],
       streamingMessageId: null,
-    }))
-  },
+      sequence: 0,
+      error: null,
+      ws: null,
+      templates: [],
+      serverUrl: null,
 
-  addActivity: (activity) => {
-    set((s) => ({
-      activities: [
-        ...s.activities,
-        {
-          ...activity,
-          id: crypto.randomUUID(),
-          timestamp: Date.now(),
-        },
-      ],
-      sequence: s.sequence + 1,
-    }))
-  },
+      history: [],
+      isLoadingMore: false,
+      hasMoreMessages: true,
+      messagesFirstLoaded: false,
 
-  clearActivities: () => set({ activities: [] }),
+      connect: (serverUrl: string, engineId = "phaser-2d") => {
+        const { ws } = get()
+        if (ws) ws.close()
 
-  setStatus: (status) => set({ status }),
-}))
+        set({ status: "connecting", engineId, error: null, serverUrl })
+
+        const socket = new WebSocket(`${serverUrl}/ws`)
+
+        socket.onopen = () => {
+          set({ ws: socket, status: "idle" })
+          console.log("[ws] connected to server")
+        }
+
+        socket.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data)
+            if (msg.type === "fs/snapshot" || msg.type === "session/created") {
+              console.log("[store] Received session-setting message:", msg.type, msg)
+            }
+            handleServerMessage(msg, set, get)
+          } catch (e) {
+            console.error("Failed to parse message:", e)
+          }
+        }
+
+        socket.onerror = () => {
+          set({ status: "error", error: "Connection failed" })
+        }
+
+        socket.onclose = () => {
+          set({ ws: null, status: "idle" })
+        }
+      },
+
+      disconnect: () => {
+        const { ws } = get()
+        if (ws) {
+          ws.close()
+          set({ ws: null, sessionId: null, status: "idle" })
+        }
+      },
+
+      fetchTemplates: async () => {
+        try {
+          const templates = await fetchTemplates()
+          set({ templates })
+        } catch (e) {
+          console.error("Failed to fetch templates:", e)
+        }
+      },
+
+      createSession: (templateId: string) => {
+        const { connect } = get()
+        connect(useSessionStore.getState().serverUrl || "ws://localhost:3001")
+
+        const checkConnection = setInterval(() => {
+          const { ws } = get()
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            clearInterval(checkConnection)
+            ws.send(JSON.stringify({ type: "session/create", engineId: "phaser-2d", templateId }))
+          }
+        }, 100)
+      },
+
+      resumeSession: (sessionId: string) => {
+        const { connect } = get()
+        connect(useSessionStore.getState().serverUrl || "ws://localhost:3001")
+
+        const checkConnection = setInterval(() => {
+          const { ws } = get()
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            clearInterval(checkConnection)
+            ws.send(JSON.stringify({ type: "session/create", engineId: "phaser-2d", sessionId }))
+          }
+        }, 100)
+      },
+
+      addToHistory: (sessionId: string, templateId?: string) => {
+        set((state) => {
+          const existing = state.history.find((h) => h.id === sessionId)
+          let newHistory
+
+          if (existing) {
+            newHistory = state.history.map((h) =>
+              h.id === sessionId
+                ? { ...h, lastActive: Date.now() }
+                : h
+            )
+          } else {
+            const template = state.templates.find(t => t.id === templateId)
+            const name = template ? `${template.name} Session` : `Session ${sessionId.slice(0, 6)}`
+
+            newHistory = [
+              {
+                id: sessionId,
+                name,
+                lastActive: Date.now(),
+                templateId
+              },
+              ...state.history
+            ].slice(0, 10) // Keep last 10
+          }
+
+          // Sort by recency
+          newHistory.sort((a, b) => b.lastActive - a.lastActive)
+
+          // Save via storage protocol
+          storage.saveHistory(newHistory)
+
+          return { history: newHistory }
+        })
+      },
+
+      loadHistory: async () => {
+        try {
+          const history = await storage.getHistory()
+          set({ history })
+        } catch (e) {
+          console.error("Failed to load history", e)
+        }
+      },
+
+      updateSessionName: (sessionId: string, name: string) => {
+        set((state) => {
+          const newHistory = state.history.map((h) =>
+            h.id === sessionId ? { ...h, name } : h
+          )
+          storage.saveHistory(newHistory)
+          return { history: newHistory }
+        })
+      },
+
+      leaveSession: () => {
+        get().disconnect()
+        useFilesStore.getState().reset()
+        // Clear session state to prevent duplicates on re-entry
+        set({ messages: [], activities: [], streamingMessageId: null, sequence: 0 })
+      },
+
+      sendPrompt: (prompt: string) => {
+        const state = get()
+        const { ws, sessionId, engineId, status } = state
+
+        console.log("[ws] sendPrompt called", { ws: !!ws, status, sessionId, prompt })
+
+        if (!ws) {
+          console.error("[ws] No WebSocket connection")
+          return
+        }
+        if (status === "running") {
+          console.log("[ws] Already running, ignoring prompt")
+          return
+        }
+        if (!sessionId) {
+          console.error("[ws] No sessionId available. Session not initialized.")
+          return
+        }
+
+        // Add user message
+        set((s) => {
+          const userMsg: Message = {
+            id: crypto.randomUUID(),
+            role: "user",
+            content: prompt,
+            timestamp: Date.now(),
+          }
+          return {
+            messages: [...s.messages, userMsg],
+            sequence: s.sequence + 1,
+          }
+        })
+
+        // Send to server
+        const message = {
+          type: "run/start",
+          sessionId,
+          engineId,
+          prompt,
+        }
+        console.log("[ws] Sending message:", message)
+        ws.send(JSON.stringify(message))
+      },
+
+      addMessage: (message: Message) => {
+        set((s) => ({ messages: [...s.messages, message] }))
+      },
+
+      updateStreamingMessage: (textId: string, text: string) => {
+        set((s) => {
+          // Check if message with this textId already exists
+          const existing = s.messages.find((m) => m.id === textId)
+          if (existing) {
+            return {
+              messages: s.messages.map((m) =>
+                m.id === textId ? { ...m, content: text, streaming: true } : m
+              ),
+              streamingMessageId: textId,
+            }
+          }
+          // Create new message
+          const newMsg: Message = {
+            id: textId,
+            role: "agent",
+            content: text,
+            streaming: true,
+            timestamp: Date.now(),
+          }
+          return {
+            messages: [...s.messages, newMsg],
+            streamingMessageId: textId,
+            sequence: s.sequence + 1,
+          }
+        })
+      },
+
+      finalizeStreamingMessage: () => {
+        set((s) => ({
+          messages: s.messages.map((m) =>
+            m.id === s.streamingMessageId ? { ...m, streaming: false } : m
+          ),
+          streamingMessageId: null,
+        }))
+      },
+
+      addActivity: (activity) => {
+        set((s) => ({
+          activities: [
+            ...s.activities,
+            {
+              ...activity,
+              id: crypto.randomUUID(),
+              timestamp: Date.now(),
+            },
+          ],
+          sequence: s.sequence + 1,
+        }))
+      },
+
+      clearActivities: () => set({ activities: [] }),
+
+      setStatus: (status) => set({ status }),
+
+      setMessagesFirstLoaded() {
+        set({ messagesFirstLoaded: true })
+      },
+
+      loadMoreMessages: () => {
+        console.log("Loading more messages...")
+        const { ws, messages, isLoadingMore, hasMoreMessages, sessionId } = get()
+        if (!ws || isLoadingMore || !hasMoreMessages || !sessionId || messages.length === 0) return
+
+        set({ isLoadingMore: true })
+
+        ws.send(JSON.stringify({
+          type: "messages/list",
+          sessionId,
+          limit: MSG_PAGE_SIZE_DEFAULT,
+          skip: messages.length,
+        }))
+      },
+    }),
+    { name: "SessionStore" }
+  ))
+
+// Helper to process server messages into client format
+function processLoadedMessages(messages: any[]): Message[] {
+  return messages.map((pm, idx) => ({
+    id: `restored-${pm.timestamp}-${idx}`,
+    role: pm.role,
+    content: pm.content,
+    streaming: false,
+    timestamp: pm.timestamp,
+    metadata: pm.metadata,
+  }))
+}
 
 function handleServerMessage(
   msg: Record<string, unknown>,
@@ -419,7 +464,6 @@ function handleServerMessage(
 
     case "fs/snapshot": {
       const snapshot = msg.files as Record<string, string> | undefined
-      const persistedMessages = msg.messages as Array<{ role: "user" | "agent"; content: string; timestamp: number }> | undefined
 
       if (snapshot) {
         const receivedSessionId = msg.sessionId as string
@@ -428,21 +472,40 @@ function handleServerMessage(
         set({ sessionId: receivedSessionId })
         useFilesStore.getState().setSnapshot(snapshot)
       }
+      break
+    }
 
-      // Load persisted messages - prepend to any existing messages
-      if (persistedMessages && persistedMessages.length > 0) {
-        console.log("[ws] loading", persistedMessages.length, "persisted messages")
-        const loadedMessages = persistedMessages.map((pm, idx) => ({
-          id: `restored-${idx}`,
-          role: pm.role,
-          content: pm.content,
-          streaming: false,
-          timestamp: pm.timestamp,
-        }))
-        // Get current messages and filter out any that were sent before snapshot arrived
-        const currentMessages = useSessionStore.getState().messages
-        // Prepend history to any new messages that may have been added
-        set({ messages: [...loadedMessages, ...currentMessages] })
+    case "messages/list": {
+      const msgs = msg.messages as Array<{ role: "user" | "agent"; content: string; timestamp: number; metadata?: any; activities?: any[] }>
+      const hasMore = msg.hasMore as boolean
+
+      if (msgs && msgs.length > 0) {
+        // Prepend to current messages
+        const serverMessages = msg.messages as any[]
+        const incomingMessages = processLoadedMessages(serverMessages)
+
+        set((s) => {
+          // Create a Map of existing messages for O(1) lookup
+          const messageMap = new Map(s.messages.map((m) => [m.id, m]))
+
+          // Add or update messages
+          incomingMessages.forEach((m) => {
+            messageMap.set(m.id, m)
+          })
+
+          // Convert back to array
+          const mergedMessages = Array.from(messageMap.values())
+
+          // Sort by timestamp if needed, but usually preserving order is enough if they come sorted
+          mergedMessages.sort((a, b) => a.timestamp - b.timestamp)
+
+          console.log("[ws] loaded", mergedMessages.length, "messages, hasMore:", hasMore)
+          return {
+            messages: mergedMessages,
+            hasMoreMessages: hasMore,
+            isLoadingMore: false,
+          }
+        })
       }
       break
     }

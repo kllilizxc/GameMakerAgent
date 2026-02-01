@@ -1,4 +1,3 @@
-import { getEngine } from "../engine/registry"
 import { ClientMessage } from "./messages"
 import {
   createSession,
@@ -14,6 +13,7 @@ import {
 import { executeRun, cancelRun } from "../agent/runner"
 import { appendMessage, loadMessages } from "../session/workspace"
 import { Perf } from "@game-agent/perf"
+import { MSG_PAGE_SIZE_INITIAL } from "@game-agent/common"
 
 interface WsContext {
   id: string
@@ -66,15 +66,24 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
       })
 
       const files = await getSnapshot(session)
-      const messages = await loadMessages(session.id)
 
+      // Send filesystem snapshot
       ws.send({
         type: "fs/snapshot",
         sessionId: session.id,
         seq: nextSeq(session),
         files,
-        messages,
       })
+
+      // Send initial messages separately
+      const messages = await loadMessages(session.id, { limit: MSG_PAGE_SIZE_INITIAL })
+      ws.send({
+        type: "messages/list",
+        sessionId: session.id,
+        messages,
+        hasMore: messages.length === MSG_PAGE_SIZE_INITIAL,
+      })
+
       console.log(`[ws] created session ${session.id} with template ${msg.templateId}, ${messages.length} messages loaded`)
       break
     }
@@ -172,6 +181,31 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
         sessionId: session.id,
         seq: nextSeq(session),
         files,
+      })
+      break
+    }
+    case "messages/list": {
+      const session = getSession(msg.sessionId)
+      if (!session) return
+
+      const result = await loadMessages(session.id, {
+        limit: msg.limit,
+        beforeTimestamp: msg.beforeTimestamp,
+        skip: msg.skip,
+      })
+
+      // Check if there are more messages before this batch
+      // Ideally loadMessages would return this info, but for now we can do a quick check
+      // A simple heuristic is if we got 'limit' messages, there MIGHT be more.
+      // For exactness, we could peek one more or query count.
+      // Let's rely on the client to ask until empty for now, or improve loadMessages return.
+      // Actually, let's keep it simple: we return what we found.
+
+      ws.send({
+        type: "messages/list",
+        sessionId: session.id,
+        messages: result,
+        hasMore: result.length === msg.limit, // Approximation
       })
       break
     }

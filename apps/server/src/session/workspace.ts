@@ -94,10 +94,26 @@ export async function applyPatchOps(sessionId: string, ops: FsPatchOp[]): Promis
 // Message history persistence
 const MESSAGES_FILE = ".agent/messages.json"
 
+export interface ActivityItem {
+  id: string
+  type: "tool" | "text" | "file"
+  timestamp: number
+  completed?: boolean
+  callId?: string
+  data: {
+    tool?: string
+    title?: string
+    path?: string
+    text?: string
+  }
+}
+
 export interface PersistedMessage {
   role: "user" | "agent"
   content: string
   timestamp: number
+  metadata?: any
+  activities?: ActivityItem[]
 }
 
 export async function saveMessages(sessionId: string, messages: PersistedMessage[]): Promise<void> {
@@ -107,11 +123,25 @@ export async function saveMessages(sessionId: string, messages: PersistedMessage
   await writeFile(join(dir, MESSAGES_FILE), JSON.stringify(messages, null, 2), "utf-8")
 }
 
-export async function loadMessages(sessionId: string): Promise<PersistedMessage[]> {
+export async function loadMessages(sessionId: string, pagination?: { limit: number; beforeTimestamp?: number; skip?: number }): Promise<PersistedMessage[]> {
   const dir = workspacePath(sessionId)
   try {
     const content = await readFile(join(dir, MESSAGES_FILE), "utf-8")
-    return JSON.parse(content)
+    const allMessages: PersistedMessage[] = JSON.parse(content)
+
+    if (!pagination) return allMessages
+
+    let messages = allMessages
+    if (pagination.beforeTimestamp) {
+      messages = messages.filter(m => m.timestamp < pagination.beforeTimestamp!)
+    }
+
+    // If skip is provided, offset from the end (since we want newest first)
+    const skip = pagination.skip || 0
+    const start = -(pagination.limit + skip)
+    const end = skip > 0 ? -skip : undefined
+
+    return messages.slice(start, end)
   } catch {
     return []
   }

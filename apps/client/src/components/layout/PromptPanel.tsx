@@ -1,6 +1,5 @@
-import { useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useSessionStore } from "@/stores/session"
-import { useAutoScroll } from "@/hooks/useAutoScroll"
 import { usePromptSubmit } from "@/hooks/usePromptSubmit"
 import { PromptHeader } from "@/components/prompt/PromptHeader"
 import { PromptInput } from "@/components/prompt/PromptInput"
@@ -13,15 +12,34 @@ interface PromptPanelProps {
 
 export function PromptPanel({ mobile }: PromptPanelProps) {
   const [expanded, setExpanded] = useState(!mobile)
-  const { status, messages, activities, sendPrompt } = useSessionStore()
+  const { status, messages, activities, sendPrompt, setMessagesFirstLoaded } = useSessionStore()
 
   const isLoading = status === "running"
-  const scrollRef = useAutoScroll([messages, activities])
 
   const { input, setInput, handleSubmit } = usePromptSubmit({
     onSubmit: sendPrompt,
     isDisabled: isLoading,
   })
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [latestMessageTimestamp, setLatestMessageTimestamp] = useState(0)
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    const container = el.parentElement
+    if (!container) return
+
+    const latestMessage = messages[messages.length - 1]
+    if (latestMessage && latestMessage.timestamp > latestMessageTimestamp) {
+      setLatestMessageTimestamp(latestMessage.timestamp)
+      el.scrollIntoView({ behavior: "instant" })
+      setTimeout(() => {
+        setMessagesFirstLoaded()
+      }, 500)
+    }
+  }, [messages, activities])
 
   // Mobile layout
   if (mobile) {

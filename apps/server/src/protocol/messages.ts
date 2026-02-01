@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { MSG_PAGE_SIZE_DEFAULT } from "@game-agent/common"
 
 // Engine IDs
 export const EngineId = z.enum(["phaser-2d", "babylon-3d"])
@@ -58,12 +59,22 @@ export const SessionCreateRequest = z.object({
 })
 export type SessionCreateRequest = z.infer<typeof SessionCreateRequest>
 
+export const MessagesListRequest = z.object({
+  type: z.literal("messages/list"),
+  sessionId: z.string(),
+  limit: z.number().default(MSG_PAGE_SIZE_DEFAULT),
+  beforeTimestamp: z.number().optional(),
+  skip: z.number().optional(),
+})
+export type MessagesListRequest = z.infer<typeof MessagesListRequest>
+
 export const ClientMessage = z.discriminatedUnion("type", [
   RunStartMessage,
   RunCancelMessage,
   FsAckMessage,
   SnapshotRequestMessage,
   SessionCreateRequest,
+  MessagesListRequest,
 ])
 export type ClientMessage = z.infer<typeof ClientMessage>
 
@@ -139,6 +150,14 @@ export const RunErrorMessage = z.object({
 })
 export type RunErrorMessage = z.infer<typeof RunErrorMessage>
 
+export const MessagesListResponse = z.object({
+  type: z.literal("messages/list"),
+  sessionId: z.string(),
+  messages: z.array(z.any()), // Using any for PersistedMessage to avoid circular deps
+  hasMore: z.boolean(),
+})
+export type MessagesListResponse = z.infer<typeof MessagesListResponse>
+
 export const ServerMessage = z.discriminatedUnion("type", [
   RunStartedMessage,
   AgentEventMessage,
@@ -147,5 +166,6 @@ export const ServerMessage = z.discriminatedUnion("type", [
   RunFinishedMessage,
   RunErrorMessage,
   SessionCreatedMessage,
+  MessagesListResponse,
 ])
 export type ServerMessage = z.infer<typeof ServerMessage>

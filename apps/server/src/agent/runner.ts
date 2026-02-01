@@ -5,7 +5,7 @@ import type { Session } from "../session/manager"
 import { broadcast, nextSeq, getWorkspacePath, finishRun } from "../session/manager"
 import { getEngine } from "../engine/registry"
 import type { FsPatchOp, AgentEventMessage, FsPatchMessage } from "../protocol/messages"
-import { appendMessage } from "../session/workspace"
+import { appendMessage, type ActivityItem } from "../session/workspace"
 import { Perf } from "@game-agent/perf"
 
 interface RunContext {
@@ -100,7 +100,7 @@ export async function executeRun(
 
     const agentTimer = Perf.time("agent", "llm-execute")
     // Pass opencode session ID if we have one from a previous run
-    await run(workspaceDir, { prompt, system: systemPrompt, sessionId: session.opencodeSessionId }, (event) => {
+    const { result } = await run(workspaceDir, { prompt, system: systemPrompt, sessionId: session.opencodeSessionId }, (event) => {
       if (ctx.aborted) return
 
       // Capture opencode session ID when it's created/resumed
@@ -129,12 +129,45 @@ export async function executeRun(
 
     flushPatches()
 
+    // Extract metadata and activities from result
+    const metadata: any = {}
+    const activities: ActivityItem[] = []
+
+    if (result && result.parts) {
+      for (const part of result.parts) {
+        if (part.type === "tool") {
+          // Merge metadata if present
+          if (part.metadata) {
+            Object.assign(metadata, part.metadata)
+          }
+          if (part.state.status === "completed" && part.state.metadata) {
+            Object.assign(metadata, part.state.metadata)
+          }
+
+          // Create activity item
+          activities.push({
+            id: part.id,
+            type: "tool",
+            timestamp: part.state.status === "completed" ? part.state.time.end : part.state.time.start,
+            completed: part.state.status === "completed",
+            callId: part.callID,
+            data: {
+              tool: part.tool,
+              title: part.state.status === "running" || part.state.status === "completed" ? part.state.title : undefined,
+            }
+          })
+        }
+      }
+    }
+
     // Persist agent response
-    if (agentResponseText.trim()) {
+    if (agentResponseText.trim() || Object.keys(metadata).length > 0 || activities.length > 0) {
       await appendMessage(session.id, {
         role: "agent",
         content: agentResponseText,
         timestamp: Date.now(),
+        metadata,
+        activities
       })
     }
 

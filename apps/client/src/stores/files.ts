@@ -1,4 +1,7 @@
 import { create } from "zustand"
+import { devtools } from "zustand/middleware"
+
+// ... imports
 
 interface FilePatch {
   op: "write" | "delete" | "mkdir"
@@ -20,56 +23,58 @@ interface FilesState {
   reset: () => void
 }
 
-export const useFilesStore = create<FilesState>((set, get) => ({
-  files: new Map(),
-  selectedFile: null,
-  pendingPatches: [],
+export const useFilesStore = create<FilesState>()(
+  devtools(
+    (set, get) => ({
+      files: new Map(),
+      selectedFile: null,
+      pendingPatches: [],
 
-  applyPatch: (patch: FilePatch) => {
-    set((state) => {
-      const files = new Map(state.files)
+      applyPatch: (patch: FilePatch) => {
+        set((state) => {
+          const files = new Map(state.files)
 
-      switch (patch.op) {
-        case "write":
-          if (patch.content !== undefined) {
-            files.set(patch.path, patch.content)
+          switch (patch.op) {
+            case "write":
+              if (patch.content !== undefined) {
+                files.set(patch.path, patch.content)
+              }
+              break
+            case "delete":
+              files.delete(patch.path)
+              break
+            case "mkdir":
+              // Directories are implicit in the file map
+              break
           }
-          break
-        case "delete":
-          files.delete(patch.path)
-          break
-        case "mkdir":
-          // Directories are implicit in the file map
-          break
-      }
 
-      return { files }
-    })
-  },
+          return { files }
+        })
+      },
 
-  applyPatches: (patches: FilePatch[]) => {
-    patches.forEach((patch) => get().applyPatch(patch))
-  },
+      applyPatches: (patches: FilePatch[]) => {
+        patches.forEach((patch) => get().applyPatch(patch))
+      },
 
-  setSnapshot: (snapshot: Record<string, string>) => {
-    const files = new Map(Object.entries(snapshot))
-    const selectedFile = files.size > 0 ? Array.from(files.keys())[0] : null
-    set({ files, selectedFile })
-  },
+      setSnapshot: (snapshot: Record<string, string>) => {
+        const files = new Map(Object.entries(snapshot))
+        const selectedFile = files.size > 0 ? Array.from(files.keys())[0] : null
+        set({ files, selectedFile })
+      },
 
-  selectFile: (path: string | null) => {
-    set({ selectedFile: path })
-  },
+      selectFile: (path: string | null) => {
+        set({ selectedFile: path })
+      },
 
-  getFileContent: (path: string) => {
-    return get().files.get(path)
-  },
+      getFileContent: (path: string) => {
+        return get().files.get(path)
+      },
 
-  getFileList: () => {
-    return Array.from(get().files.keys()).sort()
-  },
+      getFileList: () => {
+        return Array.from(get().files.keys()).sort()
+      },
 
-  reset: () => {
-    set({ files: new Map(), selectedFile: null, pendingPatches: [] })
-  },
-}))
+      reset: () => {
+        set({ files: new Map(), selectedFile: null, pendingPatches: [] })
+      },
+    })))

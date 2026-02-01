@@ -7,17 +7,36 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["bun", "node"],
+    "types": [
+      "bun",
+      "node"
+    ],
     "baseUrl": ".",
     "jsx": "preserve",
     "jsxImportSource": "@opentui/solid",
-    "customConditions": ["browser"],
+    "customConditions": [
+      "browser"
+    ],
     "paths": {
-      "@game-agent/agent": ["packages/agent/src/index.ts"],
-      "@/*": ["packages/opencode/packages/opencode/src/*"],
-      "@tui/*": ["packages/opencode/packages/opencode/src/cli/cmd/tui/*"]
+      "@game-agent/agent": [
+        "packages/agent/src/index.ts"
+      ],
+      "@game-agent/common": [
+        "packages/common/src/index.ts"
+      ],
+      "@/*": [
+        "packages/opencode/packages/opencode/src/*"
+      ],
+      "@tui/*": [
+        "packages/opencode/packages/opencode/src/cli/cmd/tui/*"
+      ]
     }
   },
-  "include": ["packages"],
-  "exclude": ["node_modules", "apps"]
+  "include": [
+    "packages"
+  ],
+  "exclude": [
+    "node_modules",
+    "apps"
+  ]
 }

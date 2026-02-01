@@ -1,10 +1,8 @@
 import { cn } from "@/lib/utils"
 import type { Message } from "@/types/session"
 import { NodeRenderer } from "markstream-react"
-import "markstream-react/index.css"
-import "./MessageItem.scss"
-
 import { TaskSteps } from "./TaskSteps"
+import { TodoList } from "./TodoList"
 
 interface MessageItemProps {
   message: Message
@@ -26,6 +24,9 @@ export function MessageItem({ message }: MessageItemProps) {
       <div className="flex flex-col gap-2">
         {message.metadata?.summary && (
           <TaskSteps steps={message.metadata.summary} />
+        )}
+        {message.metadata?.todos && (
+          <TodoList todos={message.metadata.todos} />
         )}
         {isAgent ? (
           <NodeRenderer
