@@ -66,10 +66,10 @@ export function MessageList({ messages, isReady = true }: MessageListProps) {
         )}
       </InfiniteScroll>
 
-      {status === "running" && activities.length === 0 && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      {status === "running" && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground p-2 pl-4">
           <Loader2 size={14} className="animate-spin" />
-          <span>Starting agent...</span>
+          <span>Thinking...</span>
         </div>
       )}
     </div>

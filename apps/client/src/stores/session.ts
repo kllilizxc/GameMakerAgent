@@ -229,6 +229,7 @@ export const useSessionStore = create<SessionState>()(
           return {
             messages: [...s.messages, userMsg],
             sequence: s.sequence + 1,
+            status: "running",
           }
         })
 
