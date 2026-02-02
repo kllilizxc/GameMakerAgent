@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { Message, Activity } from "@/types/session"
 
 interface UseScrollToBottomOptions {
@@ -38,36 +38,13 @@ export function useScrollToBottom({ messages, activities }: UseScrollToBottomOpt
 
     const [isInitialScrollDone, setIsInitialScrollDone] = useState(false)
 
-    // Initial load scroll - useLayoutEffect to run before paint
-    useLayoutEffect(() => {
-        // Scroll to bottom on mount if there is content
-        if (messages.length > 0 || activities.length > 0) {
-            // Immediate scroll attempt
-            scrollToBottom("instant")
-
-            // Double check after layout/paint to handle any shifts (re-mounting scenarios)
-            requestAnimationFrame(() => {
-                scrollToBottom("instant")
-                // One more frame for good measure in complex layouts
-                requestAnimationFrame(() => {
-                    scrollToBottom("instant")
-                    setIsInitialScrollDone(true)
-                })
-            })
-        } else {
-            setIsInitialScrollDone(true)
-        }
-        // We only want this to run on mount (empty dependency array for the effect itself would be ideal, 
-        // but we need the data). 
-        // However, react-hooks/exhaustive-deps will complain if we don't include them.
-        // We use a ref to track if we've done the "mount" scroll.
-    }, []) // Run only on mount
-
     // We need a separate effect that runs when data *becomes* available if it wasn't there on mount
     useEffect(() => {
         if (!isInitialScrollDone && (messages.length > 0 || activities.length > 0)) {
-            scrollToBottom("instant")
-            setIsInitialScrollDone(true)
+            requestAnimationFrame(() => {
+                scrollToBottom("instant")
+                setIsInitialScrollDone(true)
+            })
         }
     }, [messages.length, activities.length, isInitialScrollDone, scrollToBottom])
 
@@ -122,7 +99,6 @@ export function useScrollToBottom({ messages, activities }: UseScrollToBottomOpt
         bottomRef,
         scrollToBottom,
         handleScroll,
-        isAtBottom,
-        isInitialScrollDone
+        isAtBottom
     }
 }

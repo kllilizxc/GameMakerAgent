@@ -113,7 +113,7 @@ export const useSessionStore = create<SessionState>()(
 
       createSession: (templateId: string) => {
         const { connect } = get()
-        connect(useSessionStore.getState().serverUrl || "ws://localhost:3001")
+        connect(useSessionStore.getState().serverUrl || "ws://127.0.0.1:3001")
 
         const checkConnection = setInterval(() => {
           const { ws } = get()
@@ -126,7 +126,7 @@ export const useSessionStore = create<SessionState>()(
 
       resumeSession: (sessionId: string) => {
         const { connect } = get()
-        connect(useSessionStore.getState().serverUrl || "ws://localhost:3001")
+        connect(useSessionStore.getState().serverUrl || "ws://127.0.0.1:3001")
 
         const checkConnection = setInterval(() => {
           const { ws } = get()
@@ -355,6 +355,7 @@ function handleServerMessage(
 
     case "agent/event": {
       const event = msg.event as { type: string; data?: { text?: string; id?: string; tool?: string; title?: string; callId?: string } } | undefined
+      console.log("[ws] agent/event received:", event?.type, event?.data)
 
       if (event?.type === "text-delta" && event.data?.text && event.data?.id) {
         // Streaming text chunk
@@ -362,9 +363,11 @@ function handleServerMessage(
       } else if (event?.type === "text" && event.data?.text) {
         // Final complete text
         useSessionStore.getState().finalizeStreamingMessage()
-      } else if (event?.type === "tool-start" && event.data?.tool && event.data?.callId) {
-        // Tool started - replace existing activity with same callId
-        const { tool, title, callId } = event.data
+      } else if (event?.type === "tool-start" && event.data?.tool) {
+        // Tool started - replace existing activity with same callId or create new
+        const { tool, title } = event.data
+        const callId = event.data.callId || crypto.randomUUID()
+
         console.log("[ws] tool-start:", tool, "callId:", callId)
         set((s) => {
           const existingIndex = s.activities.findIndex((a) => a.callId === callId)
@@ -373,7 +376,7 @@ function handleServerMessage(
             type: "tool" as const,
             completed: false,
             callId,
-            timestamp: existingIndex !== -1 ? s.activities[existingIndex].timestamp : s.sequence,
+            timestamp: existingIndex !== -1 ? s.activities[existingIndex].timestamp : Date.now(),
             data: { tool, title },
           }
 
@@ -389,9 +392,11 @@ function handleServerMessage(
             sequence: s.sequence + 1,
           }
         })
-      } else if (event?.type === "tool" && event.data?.tool && event.data?.callId) {
-        // Tool completed - replace existing activity with completed version
-        const { tool, title, callId } = event.data
+      } else if (event?.type === "tool" && event.data?.tool) {
+        // Tool completed
+        const { tool, title } = event.data
+        const callId = event.data.callId || crypto.randomUUID()
+
         console.log("[ws] tool completed:", tool, "callId:", callId)
         set((s) => {
           const existingIndex = s.activities.findIndex((a) => a.callId === callId)
@@ -416,7 +421,7 @@ function handleServerMessage(
                 type: "tool" as const,
                 completed: true,
                 callId,
-                timestamp: s.sequence,
+                timestamp: Date.now(),
                 data: { tool, title },
               },
             ],
@@ -477,6 +482,9 @@ function handleServerMessage(
         const serverMessages = msg.messages as any[]
         const incomingMessages = processLoadedMessages(serverMessages)
 
+        // Extract activities from messages
+        const incomingActivities = serverMessages.flatMap(m => m.activities || [])
+
         set((s) => {
           // Create a Map of existing messages for O(1) lookup
           const messageMap = new Map(s.messages.map((m) => [m.id, m]))
@@ -492,9 +500,27 @@ function handleServerMessage(
           // Sort by timestamp if needed, but usually preserving order is enough if they come sorted
           mergedMessages.sort((a, b) => a.timestamp - b.timestamp)
 
-          console.log("[ws] loaded", mergedMessages.length, "messages, hasMore:", hasMore)
+          // Merge activities
+          const activityMap = new Map(s.activities.map((a) => [a.id, a]))
+          incomingActivities.forEach((a) => {
+            // Map server activity format to client Activity interface if needed
+            // Server ActivityItem usually matches Client Activity closely but let's ensure
+            activityMap.set(a.id, {
+              id: a.id,
+              type: a.type,
+              timestamp: a.timestamp,
+              data: a.data,
+              completed: a.completed,
+              callId: a.callId
+            })
+          })
+          const mergedActivities = Array.from(activityMap.values())
+          mergedActivities.sort((a, b) => a.timestamp - b.timestamp)
+
+          console.log("[ws] loaded", mergedMessages.length, "messages and", mergedActivities.length, "activities, hasMore:", hasMore)
           return {
             messages: mergedMessages,
+            activities: mergedActivities,
             hasMoreMessages: hasMore,
             isLoadingMore: false,
           }

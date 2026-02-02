@@ -46,3 +46,8 @@ workspaces/
 # Temporary
 *.tmp
 *.swp
+
+# Agent
+.agent/
+.agents/
+.claude/
