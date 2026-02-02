@@ -1,7 +1,7 @@
 import type { EngineId, ServerMessage } from "../protocol/messages"
 import { sessionId as genSessionId, runId as genRunId } from "../util/id"
 import { getEngine } from "../engine/registry"
-import { createWorkspace, deleteWorkspace, readWorkspaceFiles, workspacePath } from "./workspace"
+import { createWorkspace, deleteWorkspace, readWorkspaceFiles, workspacePath, loadMetadata, saveMetadata } from "./workspace"
 import { Perf } from "@game-agent/perf"
 
 interface RawSocket {
@@ -46,12 +46,15 @@ export async function createSession(engineId: EngineId, templateId?: string, des
       const id = desiredSessionId
       console.log(`[session] Rehydrating session from disk ${id}`)
 
+      const metadata = await loadMetadata(id)
+
       const session: Session = {
         id,
         engineId,
-        templateId, // Note: We might want to persist this in a metadata file later
+        templateId: metadata?.templateId || templateId,
         workspaceDir: dir,
         currentRunId: null,
+        opencodeSessionId: metadata?.opencodeSessionId,
         seq: 0,
         ackedSeq: 0,
         sockets: new Set(),
@@ -84,6 +87,13 @@ export async function createSession(engineId: EngineId, templateId?: string, des
   }
 
   sessions.set(id, session)
+
+  // Save initial metadata
+  saveMetadata(id, {
+    templateId,
+    version: 1
+  }).catch(err => console.error(`[session] Failed to save metadata for ${id}:`, err))
+
   return session
 }
 

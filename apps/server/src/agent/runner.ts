@@ -6,7 +6,7 @@ import type { Session } from "../session/manager"
 import { broadcast, nextSeq, getWorkspacePath, finishRun } from "../session/manager"
 import { getEngine } from "../engine/registry"
 import type { FsPatchOp, AgentEventMessage, FsPatchMessage } from "../protocol/messages"
-import { appendMessage, type ActivityItem, type PersistedMessage, loadMessages, saveMessages } from "../session/workspace"
+import { appendMessage, type ActivityItem, type PersistedMessage, loadMessages, saveMessages, saveMetadata } from "../session/workspace"
 import { Perf } from "@game-agent/perf"
 
 interface RunContext {
@@ -144,6 +144,12 @@ export async function executeRun(
       // Capture opencode session ID when it's created/resumed
       if (event.type === "session" && event.sessionId) {
         session.opencodeSessionId = event.sessionId
+        // Persist the opencode session ID immediately
+        saveMetadata(session.id, {
+          opencodeSessionId: session.opencodeSessionId,
+          templateId: session.templateId,
+          version: 1
+        }).catch(err => console.error(`[runner] Failed to save metadata for ${session.id}:`, err))
       }
 
       // Capture tool activities from stream (redundancy for robust persistence)

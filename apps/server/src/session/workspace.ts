@@ -93,6 +93,30 @@ export async function applyPatchOps(sessionId: string, ops: FsPatchOp[]): Promis
 
 // Message history persistence
 const MESSAGES_FILE = ".agent/messages.json"
+const METADATA_FILE = ".agent/metadata.json"
+
+export interface SessionMetadata {
+  opencodeSessionId?: string
+  templateId?: string
+  version: number
+}
+
+export async function saveMetadata(sessionId: string, metadata: SessionMetadata): Promise<void> {
+  const dir = workspacePath(sessionId)
+  const messagesDir = join(dir, ".agent")
+  await mkdir(messagesDir, { recursive: true })
+  await writeFile(join(dir, METADATA_FILE), JSON.stringify(metadata, null, 2), "utf-8")
+}
+
+export async function loadMetadata(sessionId: string): Promise<SessionMetadata | null> {
+  const dir = workspacePath(sessionId)
+  try {
+    const content = await readFile(join(dir, METADATA_FILE), "utf-8")
+    return JSON.parse(content)
+  } catch {
+    return null
+  }
+}
 
 export interface ActivityItem {
   id: string
