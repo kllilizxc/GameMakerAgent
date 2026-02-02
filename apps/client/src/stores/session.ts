@@ -16,6 +16,7 @@ interface SessionState {
   sequence: number
   error: string | null
   ws: WebSocket | null
+  currentRunId: string | null
   templates: TemplateInfo[]
   serverUrl: string | null
   history: SessionHistoryItem[]
@@ -39,6 +40,7 @@ interface SessionState {
   addActivity: (activity: Omit<Activity, "id" | "timestamp">) => void
   clearActivities: () => void
   setStatus: (status: SessionState["status"]) => void
+  interrupt: () => void
 }
 
 export const useSessionStore = create<SessionState>()(
@@ -53,6 +55,7 @@ export const useSessionStore = create<SessionState>()(
       sequence: 0,
       error: null,
       ws: null,
+      currentRunId: null,
       templates: [],
       serverUrl: null,
 
@@ -309,12 +312,23 @@ export const useSessionStore = create<SessionState>()(
         if (!ws || isLoadingMore || !hasMoreMessages || !sessionId || messages.length === 0) return
 
         set({ isLoadingMore: true })
-
         ws.send(JSON.stringify({
           type: "messages/list",
           sessionId,
           limit: MSG_PAGE_SIZE_DEFAULT,
           skip: messages.length,
+        }))
+      },
+
+      interrupt: () => {
+        const { ws, sessionId, status, currentRunId } = get()
+        if (!ws || !sessionId || status !== "running" || !currentRunId) return
+
+        console.log("[store] interrupting run:", currentRunId)
+        ws.send(JSON.stringify({
+          type: "run/cancel",
+          sessionId,
+          runId: currentRunId
         }))
       },
     }),
@@ -344,6 +358,7 @@ function handleServerMessage(
     case "run/started":
       set({
         sessionId: msg.sessionId as string,
+        currentRunId: msg.runId as string,
         status: "running",
       })
       break

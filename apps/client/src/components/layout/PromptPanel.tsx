@@ -13,7 +13,7 @@ interface PromptPanelProps {
 
 export function PromptPanel({ mobile }: PromptPanelProps) {
   const [expanded, setExpanded] = useState(!mobile)
-  const { status, messages, activities, sendPrompt } = useSessionStore()
+  const { status, messages, activities, sendPrompt, interrupt } = useSessionStore()
 
   const isLoading = status === "running"
 
@@ -60,6 +60,7 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
         onChange={setInput}
         onSubmit={handleSubmit}
         isLoading={isLoading}
+        onInterrupt={interrupt}
       />
     </div>
   )
