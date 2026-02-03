@@ -48,7 +48,7 @@ export function MessageList({ messages, isReady = true }: MessageListProps) {
         }}
         hasMore={isReady && hasMoreMessages}
         loader={
-          <div className="flex justify-center py-2 h-8" key="loader">
+          <div className="flex justify-center py-2 h-8" key="loader" style={{ display: isLoadingMore ? "flex" : "none" }}>
             <Loader2 size={16} className="animate-spin text-muted-foreground" />
           </div>
         }
@@ -69,7 +69,7 @@ export function MessageList({ messages, isReady = true }: MessageListProps) {
       {status === "running" && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground p-2 pl-4">
           <Loader2 size={14} className="animate-spin" />
-          <span>Thinking...</span>
+          <span>Working...</span>
         </div>
       )}
     </div>

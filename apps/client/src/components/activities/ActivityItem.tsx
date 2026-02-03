@@ -7,6 +7,12 @@ interface ActivityItemProps {
   activity: Activity
 }
 
+/** Strip workspace prefix (e.g., "workspaces/ses_xxx/") from file paths */
+function formatFilePath(path: string): string {
+  // Match pattern: workspaces/ses_<id>/ and remove it
+  return path.replace(/^workspaces\/ses_[^/]+\//, "")
+}
+
 export function ActivityItem({ activity }: ActivityItemProps) {
   const [expanded, setExpanded] = useState(false)
 
@@ -24,7 +30,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
             <span className="font-medium text-foreground">{activity.data.tool}</span>
             {activity.data.title && (
               <div className={cn("opacity-75 break-all", !expanded && "truncate")}>
-                {activity.data.title}
+                {formatFilePath(activity.data.title)}
               </div>
             )}
           </div>
@@ -43,7 +49,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
         <>
           <FileEdit size={14} className="mt-0.5 flex-shrink-0 text-green-500" />
           <div className={cn("flex-1 min-w-0", !expanded && "truncate")}>
-            <span className="text-foreground">Modified:</span> {activity.data.path}
+            <span className="text-foreground">Modified:</span> {formatFilePath(activity.data.path || "")}
           </div>
           {hasExpandableContent && (
             <button
