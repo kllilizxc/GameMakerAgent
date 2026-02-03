@@ -2,7 +2,7 @@ import { MessageItem } from "./MessageItem"
 import { ActivityItem } from "../activities/ActivityItem"
 import { TodoList } from "./TodoList"
 import { useSessionStore } from "@/stores/session"
-import { Loader2 } from "lucide-react"
+import { Loader2, AlertCircle } from "lucide-react"
 import type { Message } from "@/types/session"
 import { useMessageTimeline } from "@/hooks/useMessageTimeline"
 import InfiniteScroll from "react-infinite-scroller"
@@ -16,6 +16,7 @@ interface MessageListProps {
 export function MessageList({ messages, isReady = true }: MessageListProps) {
   const activities = useSessionStore((s) => s.activities)
   const status = useSessionStore((s) => s.status)
+  const error = useSessionStore((s) => s.error)
   const todos = useSessionStore((s) => s.todos)
 
   const loadMoreMessages = useSessionStore((s) => s.loadMoreMessages)
@@ -77,6 +78,13 @@ export function MessageList({ messages, isReady = true }: MessageListProps) {
         <div className="flex items-center gap-2 text-sm text-muted-foreground p-2 pl-4">
           <Loader2 size={14} className="animate-spin" />
           <span>Working...</span>
+        </div>
+      )}
+
+      {status === "error" && (
+        <div className="flex items-center gap-2 text-sm text-red-500 p-2 pl-4">
+          <AlertCircle size={14} />
+          <span>{error}</span>
         </div>
       )}
     </div>
