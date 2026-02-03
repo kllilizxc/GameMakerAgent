@@ -29,7 +29,12 @@ export function ActivityItem({ activity }: ActivityItemProps) {
           <div className="flex-1 min-w-0">
             <span className="font-medium text-foreground">{activity.data.tool}</span>
             {activity.data.title && (
-              <div className={cn("opacity-75 break-all", !expanded && "truncate")}>
+              <div
+                className={cn(
+                  "opacity-75 break-all transition-[max-height] duration-300 ease-in-out overflow-hidden",
+                  expanded ? "max-h-[500px]" : "max-h-[1rem]" // text-xs has line-height 1rem
+                )}
+              >
                 {formatFilePath(activity.data.title)}
               </div>
             )}
@@ -48,7 +53,12 @@ export function ActivityItem({ activity }: ActivityItemProps) {
       {activity.type === "file" && (
         <>
           <FileEdit size={14} className="mt-0.5 flex-shrink-0 text-green-500" />
-          <div className={cn("flex-1 min-w-0", !expanded && "truncate")}>
+          <div
+            className={cn(
+              "flex-1 min-w-0 transition-[max-height] duration-300 ease-in-out overflow-hidden",
+              expanded ? "max-h-[500px]" : "max-h-[1rem]"
+            )}
+          >
             <span className="text-foreground">Modified:</span> {formatFilePath(activity.data.path || "")}
           </div>
           {hasExpandableContent && (
@@ -65,7 +75,12 @@ export function ActivityItem({ activity }: ActivityItemProps) {
       {activity.type === "text" && (
         <>
           <MessageSquare size={14} className="mt-0.5 flex-shrink-0 text-purple-500" />
-          <div className={cn("flex-1 min-w-0 opacity-75", !expanded && "truncate")}>
+          <div
+            className={cn(
+              "flex-1 min-w-0 opacity-75 transition-[max-height] duration-300 ease-in-out overflow-hidden",
+              expanded ? "max-h-[500px]" : "max-h-[1rem]"
+            )}
+          >
             {activity.data.text}
           </div>
           {hasExpandableContent && (

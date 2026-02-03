@@ -31,40 +31,47 @@ export function TodoList({ todos }: TodoListProps) {
                 </span>
             </button>
 
-            {isOpen && (
-                <div className="border-t border-border px-3 py-2 space-y-1">
-                    {todos.map((todo) => (
-                        <div key={todo.id} className="flex items-start gap-2 group">
-                            <div className={cn(
-                                "mt-1 h-3.5 w-3.5 rounded border flex items-center justify-center transition-colors",
-                                todo.status === "completed"
-                                    ? "bg-primary border-primary text-primary-foreground"
-                                    : "border-muted-foreground/30 bg-background"
-                            )}>
-                                {todo.status === "completed" && (
-                                    <svg viewBox="0 0 14 14" fill="none" className="h-2.5 w-2.5">
-                                        <path d="M11.6666 3.5L5.24992 9.91667L2.33325 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                )}
+            <div
+                className={cn(
+                    "grid transition-[grid-template-rows] duration-500 ease-in-out",
+                    isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                )}
+            >
+                <div className="overflow-hidden">
+                    <div className="border-t border-border px-3 py-2 space-y-1">
+                        {todos.map((todo) => (
+                            <div key={todo.id} className="flex items-start gap-2 group">
+                                <div className={cn(
+                                    "mt-1 h-3.5 w-3.5 rounded border flex items-center justify-center transition-colors",
+                                    todo.status === "completed"
+                                        ? "bg-primary border-primary text-primary-foreground"
+                                        : "border-muted-foreground/30 bg-background"
+                                )}>
+                                    {todo.status === "completed" && (
+                                        <svg viewBox="0 0 14 14" fill="none" className="h-2.5 w-2.5">
+                                            <path d="M11.6666 3.5L5.24992 9.91667L2.33325 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    )}
+                                </div>
+                                <div className={cn(
+                                    "flex-1 text-sm transition-opacity",
+                                    todo.status === "completed" ? "text-muted-foreground line-through opacity-70" : "text-foreground"
+                                )}>
+                                    {todo.content}
+                                    {todo.priority && todo.priority !== "medium" && (
+                                        <span className={cn(
+                                            "ml-2 text-[10px] px-1 py-0.5 rounded uppercase font-semibold tracking-wider",
+                                            todo.priority === "high" ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                        )}>
+                                            {todo.priority}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                            <div className={cn(
-                                "flex-1 text-sm transition-opacity",
-                                todo.status === "completed" ? "text-muted-foreground line-through opacity-70" : "text-foreground"
-                            )}>
-                                {todo.content}
-                                {todo.priority && todo.priority !== "medium" && (
-                                    <span className={cn(
-                                        "ml-2 text-[10px] px-1 py-0.5 rounded uppercase font-semibold tracking-wider",
-                                        todo.priority === "high" ? "bg-red-500/10 text-red-600 dark:text-red-400" : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                                    )}>
-                                        {todo.priority}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
-            )}
+            </div>
         </div>
     )
 }
