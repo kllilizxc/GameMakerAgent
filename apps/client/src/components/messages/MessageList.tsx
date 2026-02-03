@@ -1,5 +1,5 @@
 import { MessageItem } from "./MessageItem"
-import { ActivityItem } from "../activities/ActivityItem"
+import { ActivityGroup } from "../activities/ActivityGroup"
 import { TodoList } from "./TodoList"
 import { useSessionStore } from "@/stores/session"
 import { Loader2, AlertCircle } from "lucide-react"
@@ -64,7 +64,7 @@ export function MessageList({ messages, isReady = true }: MessageListProps) {
           item.type === "message" ? (
             <MessageItem key={item.data.id} message={item.data} />
           ) : (
-            <ActivityItem key={item.data.id} activity={item.data} />
+            <ActivityGroup key={`group-${item.data[0].id}`} activities={item.data} />
           )
         )}
       </InfiniteScroll>
