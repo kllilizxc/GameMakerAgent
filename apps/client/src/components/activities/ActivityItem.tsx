@@ -9,8 +9,8 @@ interface ActivityItemProps {
 
 export function ActivityItem({ activity }: ActivityItemProps) {
   const [expanded, setExpanded] = useState(false)
-  
-  const hasExpandableContent = 
+
+  const hasExpandableContent =
     (activity.type === "tool" && activity.data.title && activity.data.title.length > 50) ||
     (activity.type === "file" && activity.data.path && activity.data.path.length > 40) ||
     (activity.type === "text" && activity.data.text && activity.data.text.length > 60)
@@ -23,7 +23,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
           <div className="flex-1 min-w-0">
             <span className="font-medium text-foreground">{activity.data.tool}</span>
             {activity.data.title && (
-              <div className={cn("opacity-75", !expanded && "truncate")}>
+              <div className={cn("opacity-75 break-all", !expanded && "truncate")}>
                 {activity.data.title}
               </div>
             )}

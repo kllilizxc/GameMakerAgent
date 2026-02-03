@@ -22,7 +22,7 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
     isDisabled: isLoading,
   })
 
-  const { scrollRef, bottomRef, handleScroll, isInitialScrollDone } = useScrollToBottom({ messages, activities })
+  const { scrollRef, bottomRef, handleScroll } = useScrollToBottom({ messages, activities })
 
   // Mobile layout
   if (mobile) {
@@ -50,7 +50,7 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
         ref={scrollRef}
         onScroll={handleScroll}
       >
-        <MessageList messages={messages} isReady={isInitialScrollDone} />
+        <MessageList messages={messages} />
         <div ref={bottomRef} className="h-px" />
       </div>
 
