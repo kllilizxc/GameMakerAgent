@@ -93,6 +93,7 @@ export const SessionCreatedMessage = z.object({
   sessionId: z.string(),
   engineId: EngineId,
   templateId: z.string().optional(),
+  todos: z.array(z.any()).optional(), // Using any for Todo.Info to avoid circular deps
 })
 export type SessionCreatedMessage = z.infer<typeof SessionCreatedMessage>
 

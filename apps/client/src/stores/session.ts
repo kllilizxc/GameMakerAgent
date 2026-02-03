@@ -367,7 +367,11 @@ function handleServerMessage(
 
 
     case "session/created":
-      set({ sessionId: msg.sessionId as string })
+      set((state) => ({
+        sessionId: msg.sessionId as string,
+        // Load initial todos if present
+        todos: (msg.todos as any[]) || state.todos
+      }))
       useSessionStore.getState().addToHistory(msg.sessionId as string, msg.templateId as string | undefined)
       break
 

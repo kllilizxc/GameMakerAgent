@@ -15,6 +15,8 @@ import { appendMessage, loadMessages } from "../session/workspace"
 import { Perf } from "@game-agent/perf"
 import { MSG_PAGE_SIZE_INITIAL } from "@game-agent/common"
 
+import { Todo } from "@game-agent/agent"
+
 interface WsContext {
   id: string
   data: Record<string, unknown>
@@ -58,11 +60,22 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
       ws.data.sessionId = session.id
       addSocket(session, ws.raw)
 
+      // Fetch persisted todos if they exist
+      let todos: any[] = []
+      if (session.opencodeSessionId) {
+        try {
+          todos = await Todo.get(session.opencodeSessionId)
+        } catch (e) {
+          console.error(`[ws] Failed to load todos for ${session.opencodeSessionId}:`, e)
+        }
+      }
+
       ws.send({
         type: "session/created",
         sessionId: session.id,
         engineId: msg.engineId,
         templateId: msg.templateId,
+        todos,
       })
 
       const files = await getSnapshot(session)
