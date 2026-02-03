@@ -1,9 +1,8 @@
 import { cn } from "@/lib/utils"
-import { Message } from "@/types/session"
 import { useState } from "react"
 
 interface TodoListProps {
-    todos: NonNullable<NonNullable<Message["metadata"]>["todos"]>
+    todos: Array<{ id: string; content: string; status: string; priority?: string }>
 }
 
 export function TodoList({ todos }: TodoListProps) {

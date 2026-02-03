@@ -1,5 +1,6 @@
 import { MessageItem } from "./MessageItem"
 import { ActivityItem } from "../activities/ActivityItem"
+import { TodoList } from "./TodoList"
 import { useSessionStore } from "@/stores/session"
 import { Loader2 } from "lucide-react"
 import type { Message } from "@/types/session"
@@ -15,6 +16,7 @@ interface MessageListProps {
 export function MessageList({ messages, isReady = true }: MessageListProps) {
   const activities = useSessionStore((s) => s.activities)
   const status = useSessionStore((s) => s.status)
+  const todos = useSessionStore((s) => s.todos)
 
   const loadMoreMessages = useSessionStore((s) => s.loadMoreMessages)
   const hasMoreMessages = useSessionStore((s) => s.hasMoreMessages)
@@ -65,6 +67,11 @@ export function MessageList({ messages, isReady = true }: MessageListProps) {
           )
         )}
       </InfiniteScroll>
+
+      {/* Display todos from session store */}
+      {todos && todos.length > 0 && (
+        <TodoList todos={todos} />
+      )}
 
       {status === "running" && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground p-2 pl-4">

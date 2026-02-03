@@ -22,6 +22,7 @@ interface SessionState {
   history: SessionHistoryItem[]
   isLoadingMore: boolean
   hasMoreMessages: boolean
+  todos: Array<{ id: string; content: string; status: string; priority?: string }>
 
   connect: (serverUrl: string, engineId?: string) => void
   loadMoreMessages: () => void
@@ -62,6 +63,7 @@ export const useSessionStore = create<SessionState>()(
       history: [],
       isLoadingMore: false,
       hasMoreMessages: true,
+      todos: [],
 
       connect: (serverUrl: string, engineId = "phaser-2d") => {
         const { ws } = get()
@@ -425,7 +427,15 @@ function handleServerMessage(
               completed: true,
               data: { tool, title },
             }
-            return { activities }
+
+            // Extract todos from todowrite tool
+            const updates: Partial<SessionState> = { activities }
+            const metadata = (event.data as any)?.metadata
+            if (tool === "todowrite" && metadata?.todos) {
+              console.log("[ws] updating todos:", metadata.todos)
+              updates.todos = metadata.todos
+            }
+            return updates
           }
 
           console.log("[ws] tool completed but no matching start found, creating new activity")
