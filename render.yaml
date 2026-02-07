@@ -19,10 +19,4 @@ services:
     plan: free
     buildCommand: bun run build:client
     staticPublishPath: apps/client/dist
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          type: web
-          name: game-agent-server
-          property: url
     autoDeploy: true
