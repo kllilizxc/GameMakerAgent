@@ -13,9 +13,8 @@ services:
     autoDeploy: true
 
   # Frontend Static Site
-  - type: web
+  - type: static
     name: game-agent-client
-    runtime: static
     plan: free
     buildCommand: bun run build:client
     staticPublishPath: apps/client/dist
