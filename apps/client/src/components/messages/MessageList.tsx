@@ -45,11 +45,11 @@ export function MessageList({ messages, isReady = true }: MessageListProps) {
       <InfiniteScroll
         pageStart={0}
         loadMore={() => {
-          if (!isLoadingMore && isReady) {
+          if (!isLoadingMore && isReady && hasMoreMessages) {
             loadMoreMessages()
           }
         }}
-        hasMore={isReady && hasMoreMessages}
+        hasMore={isReady && hasMoreMessages && !isLoadingMore}
         loader={
           <div className="flex justify-center py-2 h-8" key="loader" style={{ display: isLoadingMore ? "flex" : "none" }}>
             <Loader2 size={16} className="animate-spin text-muted-foreground" />
@@ -59,7 +59,10 @@ export function MessageList({ messages, isReady = true }: MessageListProps) {
         useWindow={false}
         getScrollParent={() => scrollParentRef.current?.parentElement || null}
         className="space-y-4"
+        initialLoad={false}
+        threshold={100}
       >
+
         {timeline.map((item) =>
           item.type === "message" ? (
             <MessageItem key={item.data.id} message={item.data} />

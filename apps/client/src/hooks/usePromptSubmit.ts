@@ -1,4 +1,5 @@
-import { useState, FormEvent } from "react"
+import { useState, FormEvent, useEffect } from "react"
+import { useSessionStore } from "@/stores/session"
 
 interface UsePromptSubmitOptions {
   onSubmit: (prompt: string) => void
@@ -10,6 +11,14 @@ interface UsePromptSubmitOptions {
  */
 export function usePromptSubmit({ onSubmit, isDisabled = false }: UsePromptSubmitOptions) {
   const [input, setInput] = useState("")
+  const { draftPrompt, setDraftPrompt } = useSessionStore()
+
+  useEffect(() => {
+    if (draftPrompt) {
+      setInput(draftPrompt)
+      setDraftPrompt(null) // Consume it
+    }
+  }, [draftPrompt, setDraftPrompt])
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()

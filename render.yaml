@@ -1,0 +1,28 @@
+services:
+  # Backend Service
+  - type: web
+    name: game-agent-server
+    runtime: docker
+    repo: https://github.com/render-examples/bun-docker # Replace with your repo if public, or use connected repo
+    plan: free
+    dockerContext: .
+    dockerfilePath: apps/server/Dockerfile
+    envVars:
+      - key: PORT
+        sync: false
+    autoDeploy: true
+
+  # Frontend Static Site
+  - type: web
+    name: game-agent-client
+    runtime: static
+    plan: free
+    buildCommand: bun run build:client
+    staticPublishPath: apps/client/dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: game-agent-server
+          property: url
+    autoDeploy: true

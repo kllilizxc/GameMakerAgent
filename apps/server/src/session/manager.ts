@@ -3,10 +3,57 @@ import { sessionId as genSessionId, runId as genRunId } from "../util/id"
 import { getEngine } from "../engine/registry"
 import { createWorkspace, deleteWorkspace, readWorkspaceFiles, workspacePath, loadMetadata, saveMetadata } from "./workspace"
 import { Perf } from "@game-agent/perf"
+import { GlobalBus, MessageV2, Session as OcSession, Instance } from "@game-agent/agent"
+import { transformMessages } from "./transform"
 
 interface RawSocket {
   send: (data: string) => void
 }
+// ... existing functions ...
+
+/**
+ * Initialize global event listeners
+ */
+export function initSessionManager() {
+  GlobalBus.on("event", (e) => {
+    // Filter for Message Updated events
+    if (e.payload.type === MessageV2.Event.Updated.type) {
+      const info = e.payload.properties.info
+
+      // Find session by opencodeSessionId
+      for (const session of sessions.values()) {
+        if (session.opencodeSessionId === info.sessionID) {
+          // We must provide instance context to load messages from storage
+          Instance.provide({
+            directory: getWorkspacePath(session),
+            fn: async () => {
+              // Fetch all messages to find the one that updated (we need 'parts', event only has 'info')
+              const allMessages = await OcSession.messages({ sessionID: info.sessionID })
+              const fullMessage = allMessages.find((m: MessageV2.WithParts) => m.info.id === info.id)
+
+
+              if (fullMessage) {
+                const clientMsgs = transformMessages([fullMessage])
+                if (clientMsgs.length > 0) {
+                  broadcast(session, {
+                    type: "message/updated",
+                    message: clientMsgs[0]
+                  } as any)
+                }
+              }
+            }
+          })
+
+          break
+        }
+      }
+    }
+  })
+}
+
+
+
+
 
 export interface Session {
   id: string
@@ -16,7 +63,9 @@ export interface Session {
   currentRunId: string | null
   /** OpenCode's internal session ID for message history persistence */
   opencodeSessionId?: string
+  leafId?: string // ID of the current head message
   seq: number
+
   ackedSeq: number
   sockets: Set<RawSocket>
   createdAt: Date
@@ -55,6 +104,7 @@ export async function createSession(engineId: EngineId, templateId?: string, des
         workspaceDir: dir,
         currentRunId: null,
         opencodeSessionId: metadata?.opencodeSessionId,
+        leafId: metadata?.leafId,
         seq: 0,
         ackedSeq: 0,
         sockets: new Set(),

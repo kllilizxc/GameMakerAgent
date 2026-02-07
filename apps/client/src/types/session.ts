@@ -21,7 +21,9 @@ export interface Message {
     }[]
     [key: string]: any
   }
+  activities?: Activity[]
 }
+
 
 export interface Activity {
   id: string

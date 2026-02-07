@@ -23,6 +23,7 @@ interface SessionState {
   isLoadingMore: boolean
   hasMoreMessages: boolean
   todos: Array<{ id: string; content: string; status: string; priority?: string }>
+  draftPrompt: string | null
 
   connect: (serverUrl: string, engineId?: string) => void
   loadMoreMessages: () => void
@@ -42,6 +43,8 @@ interface SessionState {
   clearActivities: () => void
   setStatus: (status: SessionState["status"]) => void
   interrupt: () => void
+  rewind: (messageId: string, edit?: boolean, content?: string) => void
+  setDraftPrompt: (prompt: string | null) => void
 }
 
 export const useSessionStore = create<SessionState>()(
@@ -62,8 +65,9 @@ export const useSessionStore = create<SessionState>()(
 
       history: [],
       isLoadingMore: false,
-      hasMoreMessages: true,
+      hasMoreMessages: false,
       todos: [],
+      draftPrompt: null,
 
       connect: (serverUrl: string, engineId = "phaser-2d") => {
         const { ws } = get()
@@ -75,14 +79,13 @@ export const useSessionStore = create<SessionState>()(
 
         socket.onopen = () => {
           set({ ws: socket, status: "idle" })
-          console.log("[ws] connected to server")
         }
 
         socket.onmessage = (event) => {
           try {
             const msg = JSON.parse(event.data)
             if (msg.type === "fs/snapshot" || msg.type === "session/created") {
-              console.log("[store] Received session-setting message:", msg.type, msg)
+
             }
             handleServerMessage(msg, set, get)
           } catch (e) {
@@ -208,14 +211,12 @@ export const useSessionStore = create<SessionState>()(
         const state = get()
         const { ws, sessionId, engineId, status } = state
 
-        console.log("[ws] sendPrompt called", { ws: !!ws, status, sessionId, prompt })
-
         if (!ws) {
           console.error("[ws] No WebSocket connection")
           return
         }
         if (status === "running") {
-          console.log("[ws] Already running, ignoring prompt")
+
           return
         }
         if (!sessionId) {
@@ -223,20 +224,9 @@ export const useSessionStore = create<SessionState>()(
           return
         }
 
-        // Add user message
-        set((s) => {
-          const userMsg: Message = {
-            id: crypto.randomUUID(),
-            role: "user",
-            content: prompt,
-            timestamp: Date.now(),
-          }
-          return {
-            messages: [...s.messages, userMsg],
-            sequence: s.sequence + 1,
-            status: "running",
-          }
-        })
+        // Add user message - DEPRECATED: Rely on server broadcast for ID consistency
+        set({ status: "running" })
+
 
         // Send to server
         const message = {
@@ -245,7 +235,6 @@ export const useSessionStore = create<SessionState>()(
           engineId,
           prompt,
         }
-        console.log("[ws] Sending message:", message)
         ws.send(JSON.stringify(message))
       },
 
@@ -309,7 +298,7 @@ export const useSessionStore = create<SessionState>()(
       setStatus: (status) => set({ status }),
 
       loadMoreMessages: () => {
-        console.log("Loading more messages...")
+
         const { ws, messages, isLoadingMore, hasMoreMessages, sessionId } = get()
         if (!ws || isLoadingMore || !hasMoreMessages || !sessionId || messages.length === 0) return
 
@@ -326,13 +315,58 @@ export const useSessionStore = create<SessionState>()(
         const { ws, sessionId, status, currentRunId } = get()
         if (!ws || !sessionId || status !== "running" || !currentRunId) return
 
-        console.log("[store] interrupting run:", currentRunId)
+
         ws.send(JSON.stringify({
           type: "run/cancel",
           sessionId,
           runId: currentRunId
         }))
       },
+
+      rewind: (messageId: string, edit = false, content?: string) => {
+        const { ws, sessionId, status } = get()
+        if (!ws || !sessionId) return
+        if (status === "running") {
+          console.warn("Cannot rewind while running")
+          return
+        }
+
+
+        ws.send(JSON.stringify({
+          type: "session/rewind",
+          sessionId,
+          messageId,
+          edit
+        }))
+
+        if (edit && content) {
+          set({ draftPrompt: content })
+        }
+
+        // Optimistically clear later messages
+        set((s) => {
+          // If editing, we remove the target message itself from view (it will be in input)
+          // If just rewinding (viewing), we keep it.
+          // Actually, if we rewind history to Parent, the target message effectively disappears from history.
+          // So in both cases (if edit=true, or if we supported non-edit rewind to parent), it disappears.
+          // But here edit=true means "rewind to parent".
+          // If edit=false, we rewind TO the message (so it stays).
+
+          let index = s.messages.findIndex(m => m.id === messageId)
+          if (index !== -1) {
+            // If edit=true, we slice BEFORE this message.
+            // If edit=false, we slice INCLUDING this message.
+            const sliceEnd = edit ? index : index + 1
+            return {
+              messages: s.messages.slice(0, sliceEnd),
+              activities: s.activities.filter(a => a.timestamp <= s.messages[index].timestamp)
+            }
+          }
+          return {}
+        })
+      },
+
+      setDraftPrompt: (prompt) => set({ draftPrompt: prompt }),
     }),
     { name: "SessionStore" }
   ))
@@ -340,21 +374,23 @@ export const useSessionStore = create<SessionState>()(
 // Helper to process server messages into client format
 function processLoadedMessages(messages: any[]): Message[] {
   return messages.map((pm, idx) => ({
-    id: `restored-${pm.timestamp}-${idx}`,
+    id: pm.id || `restored-${pm.timestamp}-${idx}`,
     role: pm.role,
     content: pm.content,
     streaming: false,
     timestamp: pm.timestamp,
     metadata: pm.metadata,
+    activities: pm.activities,
   }))
 }
+
 
 function handleServerMessage(
   msg: Record<string, unknown>,
   set: (fn: Partial<SessionState> | ((s: SessionState) => Partial<SessionState>)) => void,
   _get: () => SessionState
 ) {
-  console.log("[ws] handleServerMessage:", msg.type, msg)
+
 
   switch (msg.type) {
     case "run/started":
@@ -376,12 +412,13 @@ function handleServerMessage(
       break
 
     case "agent/event": {
-      const event = msg.event as { type: string; data?: { text?: string; id?: string; tool?: string; title?: string; callId?: string } } | undefined
-      console.log("[ws] agent/event received:", event?.type, event?.data)
+      const event = msg.event as { type: string; data?: { text?: string; id?: string; messageID?: string; tool?: string; title?: string; callId?: string } } | undefined
+
 
       if (event?.type === "text-delta" && event.data?.text && event.data?.id) {
-        // Streaming text chunk
-        useSessionStore.getState().updateStreamingMessage(event.data.id, event.data.text)
+        // Streaming text chunk - prefer messageID for consistency with persistence
+        const id = event.data.messageID || event.data.id
+        useSessionStore.getState().updateStreamingMessage(id, event.data.text)
       } else if (event?.type === "text" && event.data?.text) {
         // Final complete text
         useSessionStore.getState().finalizeStreamingMessage()
@@ -390,7 +427,7 @@ function handleServerMessage(
         const { tool, title } = event.data
         const callId = event.data.callId || crypto.randomUUID()
 
-        console.log("[ws] tool-start:", tool, "callId:", callId)
+
         set((s) => {
           const existingIndex = s.activities.findIndex((a) => a.callId === callId)
           const newActivity = {
@@ -403,7 +440,6 @@ function handleServerMessage(
           }
 
           if (existingIndex !== -1) {
-            console.log("[ws] replacing existing activity at index:", existingIndex)
             const activities = [...s.activities]
             activities[existingIndex] = newActivity
             return { activities }
@@ -419,12 +455,11 @@ function handleServerMessage(
         const { tool, title } = event.data
         const callId = event.data.callId || crypto.randomUUID()
 
-        console.log("[ws] tool completed:", tool, "callId:", callId)
+
         set((s) => {
           const existingIndex = s.activities.findIndex((a) => a.callId === callId)
 
           if (existingIndex !== -1) {
-            console.log("[ws] marking tool complete at index:", existingIndex)
             const activities = [...s.activities]
             activities[existingIndex] = {
               ...activities[existingIndex],
@@ -436,13 +471,12 @@ function handleServerMessage(
             const updates: Partial<SessionState> = { activities }
             const metadata = (event.data as any)?.metadata
             if (tool === "todowrite" && metadata?.todos) {
-              console.log("[ws] updating todos:", metadata.todos)
               updates.todos = metadata.todos
             }
             return updates
           }
 
-          console.log("[ws] tool completed but no matching start found, creating new activity")
+
           return {
             activities: [
               ...s.activities,
@@ -462,6 +496,24 @@ function handleServerMessage(
       break
     }
 
+    case "message/updated": {
+      // This comes from our manual broadcast in session/manager.ts
+      const msgUpdate = msg as any
+      const incoming = processLoadedMessages([msgUpdate.message])[0]
+
+      set((s) => {
+        const messageMap = new Map(s.messages.map((m) => [m.id, m]))
+        messageMap.set(incoming.id, incoming)
+
+        const mergedMessages = Array.from(messageMap.values())
+        mergedMessages.sort((a, b) => a.timestamp - b.timestamp)
+        return { messages: mergedMessages }
+      })
+      break
+    }
+
+
+
     case "run/finished":
       useSessionStore.getState().finalizeStreamingMessage()
       set({ status: "idle" })
@@ -477,7 +529,6 @@ function handleServerMessage(
     case "fs/patch": {
       const ops = msg.ops as FsPatch[] | undefined
       if (ops) {
-        console.log("[ws] applying fs patches:", ops.length)
         const filesStore = useFilesStore.getState()
         ops.forEach((patch) => {
           filesStore.applyPatch(patch)
@@ -495,7 +546,6 @@ function handleServerMessage(
 
       if (snapshot) {
         const receivedSessionId = msg.sessionId as string
-        console.log("[ws] received snapshot:", Object.keys(snapshot).length, "files, sessionId:", receivedSessionId)
         // Store sessionId from snapshot
         set({ sessionId: receivedSessionId })
         useFilesStore.getState().setSnapshot(snapshot)
@@ -506,57 +556,86 @@ function handleServerMessage(
     case "messages/list": {
       const msgs = msg.messages as Array<{ role: "user" | "agent"; content: string; timestamp: number; metadata?: any; activities?: any[] }>
       const hasMore = msg.hasMore as boolean
+      const shouldReplace = msg.replace as boolean | undefined
 
       if (msgs && msgs.length > 0) {
-        // Prepend to current messages
         const serverMessages = msg.messages as any[]
         const incomingMessages = processLoadedMessages(serverMessages)
-
-        // Extract activities from messages
         const incomingActivities = serverMessages.flatMap(m => m.activities || [])
 
-        set((s) => {
-          // Create a Map of existing messages for O(1) lookup
-          const messageMap = new Map(s.messages.map((m) => [m.id, m]))
-
-          // Add or update messages
-          incomingMessages.forEach((m) => {
-            messageMap.set(m.id, m)
-          })
-
-          // Convert back to array
-          const mergedMessages = Array.from(messageMap.values())
-
-          // Sort by timestamp if needed, but usually preserving order is enough if they come sorted
-          mergedMessages.sort((a, b) => a.timestamp - b.timestamp)
-
-          // Merge activities
-          const activityMap = new Map(s.activities.map((a) => [a.id, a]))
-          incomingActivities.forEach((a) => {
-            // Map server activity format to client Activity interface if needed
-            // Server ActivityItem usually matches Client Activity closely but let's ensure
-            activityMap.set(a.id, {
-              id: a.id,
-              type: a.type,
-              timestamp: a.timestamp,
-              data: a.data,
-              completed: a.completed,
-              callId: a.callId
-            })
-          })
-          const mergedActivities = Array.from(activityMap.values())
-          mergedActivities.sort((a, b) => a.timestamp - b.timestamp)
-
-          console.log("[ws] loaded", mergedMessages.length, "messages and", mergedActivities.length, "activities, hasMore:", hasMore)
-          return {
-            messages: mergedMessages,
-            activities: mergedActivities,
+        if (shouldReplace) {
+          // Replace mode (for rewind): completely replace messages and activities
+          // Logic for replace...
+          incomingMessages.sort((a, b) => a.timestamp - b.timestamp)
+          const activities = incomingActivities.map((a: any) => ({
+            id: a.id,
+            type: a.type,
+            timestamp: a.timestamp,
+            data: a.data,
+            completed: a.completed,
+            callId: a.callId
+          }))
+          activities.sort((a: any, b: any) => a.timestamp - b.timestamp)
+          set({
+            messages: incomingMessages,
+            activities,
             hasMoreMessages: hasMore,
             isLoadingMore: false,
-          }
-        })
+          })
+        } else {
+          // Merge mode (for load more or udpates): merge with existing messages
+          set((s) => {
+            const messageMap = new Map(s.messages.map((m) => [m.id, m]))
+
+            // Deduplicate logic removed - simply update/add messages
+            incomingMessages.forEach((incoming) => {
+              messageMap.set(incoming.id, incoming)
+            })
+
+            const mergedMessages = Array.from(messageMap.values())
+            mergedMessages.sort((a, b) => a.timestamp - b.timestamp)
+
+            const activityMap = new Map(s.activities.map((a) => [a.id, a]))
+            incomingActivities.forEach((a) => {
+              activityMap.set(a.id, {
+                id: a.id,
+                type: a.type,
+                timestamp: a.timestamp,
+                data: a.data,
+                completed: a.completed,
+                callId: a.callId
+              })
+            })
+            const mergedActivities = Array.from(activityMap.values())
+            mergedActivities.sort((a, b) => a.timestamp - b.timestamp)
+            return {
+              messages: mergedMessages,
+              activities: mergedActivities,
+              hasMoreMessages: hasMore,
+              isLoadingMore: false,
+            }
+          })
+        }
+
+      } else {
+        // No messages returned - still need to update loading state
+        if (shouldReplace) {
+          set({
+            messages: [],
+            activities: [],
+            hasMoreMessages: hasMore,
+            isLoadingMore: false,
+          })
+        } else {
+          set({
+            hasMoreMessages: hasMore,
+            isLoadingMore: false,
+          })
+        }
       }
       break
     }
+
+
   }
 }

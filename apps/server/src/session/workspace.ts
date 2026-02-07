@@ -28,8 +28,16 @@ export async function createWorkspace(sessionId: string, seed: FileMap): Promise
     await writeFile(full, content, "utf-8")
   }
 
+  // Initialize as git repo to enable OpenCode's snapshot tracking
+  // This allows revert/undo functionality to work properly
+  const { $ } = await import("bun")
+  await $`git init`.cwd(dir).quiet().nothrow()
+  await $`git add .`.cwd(dir).quiet().nothrow()
+  await $`git commit -m "Initial commit"`.cwd(dir).quiet().nothrow()
+
   return dir
 }
+
 
 export async function deleteWorkspace(sessionId: string): Promise<void> {
   using timer = Perf.time("file", "delete-workspace")
@@ -92,7 +100,6 @@ export async function applyPatchOps(sessionId: string, ops: FsPatchOp[]): Promis
 }
 
 // Message history persistence
-const MESSAGES_FILE = ".agent/messages.json"
 const METADATA_FILE = ".agent/metadata.json"
 
 export interface SessionMetadata {
@@ -118,61 +125,3 @@ export async function loadMetadata(sessionId: string): Promise<SessionMetadata |
   }
 }
 
-export interface ActivityItem {
-  id: string
-  type: "tool" | "text" | "file"
-  timestamp: number
-  completed?: boolean
-  callId?: string
-  data: {
-    tool?: string
-    title?: string
-    path?: string
-    text?: string
-  }
-}
-
-export interface PersistedMessage {
-  role: "user" | "agent"
-  content: string
-  timestamp: number
-  metadata?: any
-  activities?: ActivityItem[]
-}
-
-export async function saveMessages(sessionId: string, messages: PersistedMessage[]): Promise<void> {
-  const dir = workspacePath(sessionId)
-  const messagesDir = join(dir, ".agent")
-  await mkdir(messagesDir, { recursive: true })
-  await writeFile(join(dir, MESSAGES_FILE), JSON.stringify(messages, null, 2), "utf-8")
-}
-
-export async function loadMessages(sessionId: string, pagination?: { limit: number; beforeTimestamp?: number; skip?: number }): Promise<PersistedMessage[]> {
-  const dir = workspacePath(sessionId)
-  try {
-    const content = await readFile(join(dir, MESSAGES_FILE), "utf-8")
-    const allMessages: PersistedMessage[] = JSON.parse(content)
-
-    if (!pagination) return allMessages
-
-    let messages = allMessages
-    if (pagination.beforeTimestamp) {
-      messages = messages.filter(m => m.timestamp < pagination.beforeTimestamp!)
-    }
-
-    // If skip is provided, offset from the end (since we want newest first)
-    const skip = pagination.skip || 0
-    const start = -(pagination.limit + skip)
-    const end = skip > 0 ? -skip : undefined
-
-    return messages.slice(start, end)
-  } catch {
-    return []
-  }
-}
-
-export async function appendMessage(sessionId: string, message: PersistedMessage): Promise<void> {
-  const messages = await loadMessages(sessionId)
-  messages.push(message)
-  await saveMessages(sessionId, messages)
-}

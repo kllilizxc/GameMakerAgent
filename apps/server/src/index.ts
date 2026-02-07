@@ -3,12 +3,14 @@ import { cors } from "@elysiajs/cors"
 import { ensureWorkspacesDir } from "./session/workspace"
 import { listEngines, getEngine } from "./engine/registry"
 import { wsHandler } from "./protocol/handler"
+import { initSessionManager } from "./session/manager"
 import { Perf } from "@game-agent/perf"
 
 const PORT = Number(process.env.PORT) || 3001
 const HOST = process.env.HOST || "0.0.0.0"
 
 await ensureWorkspacesDir()
+initSessionManager()
 
 const app = new Elysia()
   .use(cors())

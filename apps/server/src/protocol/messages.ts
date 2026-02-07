@@ -68,13 +68,23 @@ export const MessagesListRequest = z.object({
 })
 export type MessagesListRequest = z.infer<typeof MessagesListRequest>
 
+export const SessionRewindMessage = z.object({
+  type: z.literal("session/rewind"),
+  sessionId: z.string(),
+  messageId: z.string(),
+  edit: z.boolean().optional(),
+})
+export type SessionRewindMessage = z.infer<typeof SessionRewindMessage>
+
 export const ClientMessage = z.discriminatedUnion("type", [
   RunStartMessage,
   RunCancelMessage,
   FsAckMessage,
   SnapshotRequestMessage,
+  TemplatesListRequest,
   SessionCreateRequest,
   MessagesListRequest,
+  SessionRewindMessage,
 ])
 export type ClientMessage = z.infer<typeof ClientMessage>
 
@@ -159,6 +169,14 @@ export const MessagesListResponse = z.object({
 })
 export type MessagesListResponse = z.infer<typeof MessagesListResponse>
 
+// ... existing messages ...
+
+export const MessageUpdatedMessage = z.object({
+  type: z.literal("message/updated"),
+  message: z.any(), // ClientMessage from transform.ts
+})
+export type MessageUpdatedMessage = z.infer<typeof MessageUpdatedMessage>
+
 export const ServerMessage = z.discriminatedUnion("type", [
   RunStartedMessage,
   AgentEventMessage,
@@ -168,5 +186,7 @@ export const ServerMessage = z.discriminatedUnion("type", [
   RunErrorMessage,
   SessionCreatedMessage,
   MessagesListResponse,
+  MessageUpdatedMessage,
 ])
 export type ServerMessage = z.infer<typeof ServerMessage>
+

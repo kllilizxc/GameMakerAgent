@@ -11,27 +11,29 @@ import {
   broadcast,
 } from "../session/manager"
 import { executeRun, cancelRun } from "../agent/runner"
-import { appendMessage, loadMessages } from "../session/workspace"
+import { transformMessages } from "../session/transform"
 import { Perf } from "@game-agent/perf"
 import { MSG_PAGE_SIZE_INITIAL } from "@game-agent/common"
 
-import { Todo } from "@game-agent/agent"
+import { Todo, Session, SessionRevert, Instance } from "@game-agent/agent"
 
 interface WsContext {
+
   id: string
   data: Record<string, unknown>
   send: (data: unknown) => void
   raw: { send: (data: string) => void }
 }
 
+
 async function handleMessage(ws: WsContext, message: string): Promise<void> {
   const msgTimer = Perf.time("ws", "message-handle")
-  console.log("[ws] raw message type:", typeof message, "value:", message)
+
 
   let parsed: unknown
   try {
     parsed = JSON.parse(message)
-    console.log("[ws] parsed:", parsed)
+
   } catch (e) {
     console.error("[ws] JSON parse error:", e, "message was:", message)
     ws.send({ type: "error", message: "Invalid JSON" })
@@ -88,8 +90,15 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
         files,
       })
 
-      // Send initial messages separately
-      const messages = await loadMessages(session.id, { limit: MSG_PAGE_SIZE_INITIAL })
+      // Send initial messages from OpenCode session
+      let messages: ReturnType<typeof transformMessages> = []
+      if (session.opencodeSessionId) {
+        const ocMessages = await Session.messages({
+          sessionID: session.opencodeSessionId,
+          limit: MSG_PAGE_SIZE_INITIAL
+        })
+        messages = transformMessages(ocMessages)
+      }
       ws.send({
         type: "messages/list",
         sessionId: session.id,
@@ -97,18 +106,19 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
         hasMore: messages.length === MSG_PAGE_SIZE_INITIAL,
       })
 
-      console.log(`[ws] created session ${session.id} with template ${msg.templateId}, ${messages.length} messages loaded`)
+
       break
     }
+
 
     case "run/start": {
       // Session should already exist from connection
       const wsSessionId = ws.data.sessionId as string
       const msgSessionId = msg.sessionId
-      console.log("[ws] run/start - ws.data.sessionId:", wsSessionId, "msg.sessionId:", msgSessionId)
+
 
       const session = getSession(msgSessionId || wsSessionId)
-      console.log("[ws] getSession result:", session ? `found (${session.id})` : "not found")
+
 
       if (!session) {
         ws.send({
@@ -129,12 +139,7 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
 
       const runId = startRun(session)
 
-      // Persist user message
-      await appendMessage(session.id, {
-        role: "user",
-        content: msg.prompt,
-        timestamp: Date.now(),
-      })
+      // Note: User message is stored by OpenCode agent when run executes
 
       ws.send({
         type: "run/started",
@@ -201,27 +206,96 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
       const session = getSession(msg.sessionId)
       if (!session) return
 
-      const result = await loadMessages(session.id, {
-        limit: msg.limit,
-        beforeTimestamp: msg.beforeTimestamp,
-        skip: msg.skip,
-      })
-
-      // Check if there are more messages before this batch
-      // Ideally loadMessages would return this info, but for now we can do a quick check
-      // A simple heuristic is if we got 'limit' messages, there MIGHT be more.
-      // For exactness, we could peek one more or query count.
-      // Let's rely on the client to ask until empty for now, or improve loadMessages return.
-      // Actually, let's keep it simple: we return what we found.
+      // Load messages from OpenCode session
+      let result: ReturnType<typeof transformMessages> = []
+      if (session.opencodeSessionId) {
+        const ocMessages = await Session.messages({
+          sessionID: session.opencodeSessionId,
+          limit: msg.limit
+        })
+        result = transformMessages(ocMessages)
+      }
 
       ws.send({
         type: "messages/list",
         sessionId: session.id,
         messages: result,
-        hasMore: result.length === msg.limit, // Approximation
+        hasMore: result.length === msg.limit,
       })
       break
     }
+
+    case "session/rewind": {
+      const session = getSession(msg.sessionId)
+      if (!session?.opencodeSessionId) {
+        ws.send({
+          type: "run/error",
+          sessionId: msg.sessionId,
+          message: "Session not found or not initialized",
+        })
+        return
+      }
+
+      let targetMessageID = msg.messageId
+
+      // Wrap ALL operations in a single Instance.provide() to ensure consistent context
+      const { messages, files } = await Instance.provide({
+        directory: session.workspaceDir,
+        fn: async () => {
+          // Edit mode: find parent message to revert to
+          if (msg.edit) {
+            const ocMsgsForEdit = await Session.messages({ sessionID: session.opencodeSessionId! })
+            const targetMsg = ocMsgsForEdit.find((m: { info: { id: string } }) => m.info.id === targetMessageID)
+
+            if (targetMsg?.info.role === "assistant" && (targetMsg.info as any).parentID) {
+              targetMessageID = (targetMsg.info as any).parentID
+            }
+          }
+
+          const revertedSession = await SessionRevert.revert({
+            sessionID: session.opencodeSessionId!,
+            messageID: targetMessageID
+          })
+
+          // Call cleanup() to actually delete messages after the revert point
+          if (revertedSession?.revert) {
+            await SessionRevert.cleanup(revertedSession)
+
+            // Add a small delay to ensure storage consistency
+            await new Promise(resolve => setTimeout(resolve, 100))
+          }
+
+          // Reload messages after revert
+          const ocMessages = await Session.messages({ sessionID: session.opencodeSessionId! })
+
+          const messages = transformMessages(ocMessages)
+
+          // Get snapshot within the same context
+
+          const files = await getSnapshot(session)
+          return { messages, files }
+        }
+      })
+
+      ws.send({
+        type: "messages/list",
+        sessionId: session.id,
+        messages,
+        hasMore: false,
+        replace: true,  // Signal client to replace messages instead of merge
+      })
+
+
+      ws.send({
+        type: "fs/snapshot",
+        sessionId: session.id,
+        seq: nextSeq(session),
+        files,
+      })
+      break
+    }
+
+
   }
 }
 
@@ -238,11 +312,11 @@ function handleClose(ws: WsContext): void {
 export const wsHandler = {
   async open(ws: WsContext) {
     ws.data = { sessionId: "" }
-    console.log(`[ws] client connected`)
+
   },
 
   message(ws: WsContext, message: unknown) {
-    console.log(`[ws] message type:`, typeof message, message)
+
 
     // Elysia may pass string, Buffer, or already-parsed object
     let text: string
@@ -259,7 +333,7 @@ export const wsHandler = {
   },
 
   close(ws: WsContext) {
-    console.log(`[ws] client disconnected`)
+
     handleClose(ws)
   },
 }
