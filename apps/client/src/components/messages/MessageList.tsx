@@ -15,7 +15,7 @@ export function MessageList({ messages }: MessageListProps) {
   const status = useSessionStore((s) => s.status)
   const error = useSessionStore((s) => s.error)
   const todos = useSessionStore((s) => s.todos)
-  const isLoadingMore = useSessionStore((s) => s.isLoadingMore)
+  const hasMoreMessages = useSessionStore((s) => s.hasMoreMessages)
 
   // Timeline Management - merges messages and activities
   const timeline = useMessageTimeline(messages, activities)
@@ -34,7 +34,7 @@ export function MessageList({ messages }: MessageListProps) {
   return (
     <div className="space-y-4">
       {/* Loading indicator at top when loading more messages */}
-      {isLoadingMore && (
+      {hasMoreMessages && (
         <div className="flex justify-center py-2">
           <Loader2 size={16} className="animate-spin text-muted-foreground" />
         </div>
