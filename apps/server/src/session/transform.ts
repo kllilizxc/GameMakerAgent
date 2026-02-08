@@ -30,6 +30,8 @@ export interface ClientActivity {
  */
 export function transformMessages(ocMessages: MessageV2.WithParts[]): ClientMessage[] {
     return ocMessages.map((msg) => {
+        const messageTimestamp = msg.info.time.created
+
         // Extract text content from TextParts
         const textParts = msg.parts.filter((p): p is MessageV2.TextPart => p.type === "text")
         const content = textParts.map(p => p.text).join("")
@@ -57,12 +59,21 @@ export function transformMessages(ocMessages: MessageV2.WithParts[]): ClientMess
                 }
             }
 
+            // Use time.start for running/completed, fallback to message creation time for pending/error
+            let timestamp: number
+            if (state.status === "completed" || state.status === "running") {
+                timestamp = state.time.start
+            } else if (state.status === "error") {
+                timestamp = state.time.start
+            } else {
+                // Pending state - use message creation time as best approximation
+                timestamp = messageTimestamp
+            }
+
             return {
                 id: t.id,
                 type: "tool" as const,
-                timestamp: state.status === "completed" || state.status === "running"
-                    ? state.time.start
-                    : Date.now(),
+                timestamp,
                 completed: state.status === "completed",
                 callId: t.callID,
                 data: {
@@ -76,7 +87,7 @@ export function transformMessages(ocMessages: MessageV2.WithParts[]): ClientMess
             id: msg.info.id,
             role: msg.info.role === "user" ? "user" as const : "agent" as const,
             content,
-            timestamp: msg.info.time.created,
+            timestamp: messageTimestamp,
             activities: activities.length > 0 ? activities : undefined
         }
     })

@@ -2,21 +2,33 @@ import { useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { PromptPanel } from "./PromptPanel"
 import { WorkspaceArea } from "./WorkspaceArea"
+import { LoadingOverlay } from "./LoadingOverlay"
 import { useWebContainer } from "@/hooks/useWebContainer"
 import { useFilesStore } from "@/stores/files"
+import { usePreviewStore } from "@/stores/preview"
 
 export function AppShell() {
   const [isMobile, setIsMobile] = useState(false)
   const files = useFilesStore((s) => s.files)
+  const wcStatus = usePreviewStore((s) => s.status)
   const hasBooted = useRef(false)
   const prevFilesRef = useRef<Map<string, string>>(new Map())
 
   const { boot, writeFiles, installDeps, startDevServer, applyFilePatch } = useWebContainer()
 
+  // Check if WebContainer is fully ready
+  const isWcReady = wcStatus === "running"
+
   // Boot WebContainer and sync files
   useEffect(() => {
     // Only boot if we have files (snapshot received)
     if (files.size === 0) return
+
+    // Don't apply patches until WC is fully ready
+    if (!isWcReady && hasBooted.current) {
+      console.log("[wc] Skipping patch - not ready yet")
+      return
+    }
 
     const syncFiles = async () => {
       // First time - boot and write all files
@@ -64,7 +76,7 @@ export function AppShell() {
     }
 
     syncFiles()
-  }, [files, boot, writeFiles, installDeps, startDevServer, applyFilePatch])
+  }, [files, isWcReady, boot, writeFiles, installDeps, startDevServer, applyFilePatch])
 
   // Check for mobile on mount and resize
   if (typeof window !== "undefined") {
@@ -80,6 +92,9 @@ export function AppShell() {
         isMobile ? "flex-col" : "flex-row"
       )}
     >
+      {/* Loading overlay */}
+      <LoadingOverlay />
+
       {/* Desktop: Left panel | Mobile: rendered at bottom */}
       {!isMobile && (
         <aside className="w-80 border-r border-border flex-shrink-0 flex flex-col">
@@ -101,3 +116,4 @@ export function AppShell() {
     </div>
   )
 }
+

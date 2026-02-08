@@ -414,19 +414,18 @@ function handleServerMessage(
     case "agent/event": {
       const event = msg.event as { type: string; data?: { text?: string; id?: string; messageID?: string; tool?: string; title?: string; callId?: string } } | undefined
 
-
-      if (event?.type === "text-delta" && event.data?.text && event.data?.id) {
-        // Streaming text chunk - prefer messageID for consistency with persistence
+      if (event?.type === "text-delta" && event.data?.text) {
+        // Streaming text chunk - use messageID for consistency with persistence
         const id = event.data.messageID || event.data.id
-        useSessionStore.getState().updateStreamingMessage(id, event.data.text)
+        if (id) {
+          useSessionStore.getState().updateStreamingMessage(id, event.data.text)
+        }
       } else if (event?.type === "text" && event.data?.text) {
         // Final complete text
         useSessionStore.getState().finalizeStreamingMessage()
       } else if (event?.type === "tool-start" && event.data?.tool) {
-        // Tool started - replace existing activity with same callId or create new
         const { tool, title } = event.data
         const callId = event.data.callId || crypto.randomUUID()
-
 
         set((s) => {
           const existingIndex = s.activities.findIndex((a) => a.callId === callId)
@@ -451,10 +450,8 @@ function handleServerMessage(
           }
         })
       } else if (event?.type === "tool" && event.data?.tool) {
-        // Tool completed
         const { tool, title } = event.data
         const callId = event.data.callId || crypto.randomUUID()
-
 
         set((s) => {
           const existingIndex = s.activities.findIndex((a) => a.callId === callId)
@@ -475,7 +472,6 @@ function handleServerMessage(
             }
             return updates
           }
-
 
           return {
             activities: [
@@ -503,16 +499,22 @@ function handleServerMessage(
 
       set((s) => {
         const messageMap = new Map(s.messages.map((m) => [m.id, m]))
+
+        // Ensure the incoming message keeps the streaming flag if it was indeed the one being streamed
+        if (incoming.id === s.streamingMessageId) {
+          incoming.streaming = true
+        }
+
         messageMap.set(incoming.id, incoming)
 
         const mergedMessages = Array.from(messageMap.values())
         mergedMessages.sort((a, b) => a.timestamp - b.timestamp)
-        return { messages: mergedMessages }
+        return {
+          messages: mergedMessages,
+        }
       })
       break
     }
-
-
 
     case "run/finished":
       useSessionStore.getState().finalizeStreamingMessage()
@@ -635,7 +637,5 @@ function handleServerMessage(
       }
       break
     }
-
-
   }
 }

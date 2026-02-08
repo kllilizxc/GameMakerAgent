@@ -104,7 +104,7 @@ export async function executeRun(
     const { result } = await run(workspaceDir, { prompt, system: systemPrompt, sessionId: session.opencodeSessionId }, (event) => {
       if (ctx.aborted) return
 
-
+      console.log(`[runner] ${Date.now()} received event: ${event.type}`)
 
       // Capture opencode session ID when it's created/resumed
       if (event.type === "session" && event.sessionId) {

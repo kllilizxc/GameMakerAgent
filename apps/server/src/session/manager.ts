@@ -180,6 +180,10 @@ export function removeSocket(session: Session, socket: RawSocket): void {
 }
 
 export function broadcast(session: Session, message: ServerMessage): void {
+  const event = (message as any).event
+  const eventType = event?.type
+  const len = event?.data?.text?.length
+  console.log(`[broadcast] ${Date.now()} sending ${message.type} ${eventType} ${len && `len=${len}`}`)
   using timer = Perf.time("ws", "broadcast")
   const data = JSON.stringify(message)
   for (const socket of session.sockets) {
