@@ -16,9 +16,12 @@ An AI-powered game development assistant that helps you create web games through
 ## ✨ Features
 
 - **Natural Language Game Creation** — Describe your game in plain English, and watch it come to life
+- **Template System** — Start from a variety of game templates (platformer, RPG, puzzle, etc.)
 - **Real-time Code Generation** — See code being written as you chat with the agent
 - **Live Preview** — Instantly preview your game as it's being built
 - **Iterative Development** — Request changes and refinements through conversation
+- **Rewind & Edit** — Go back to any previous step, edit the code or prompt, and regenerate from there
+- **Virtual Scrolling** — Smooth scrolling for long chat histories
 - **File System Visualization** — Browse and edit generated code in an integrated editor
 - **Cross-platform** — Web-based client with iOS support via Capacitor
 
