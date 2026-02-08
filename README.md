@@ -65,11 +65,11 @@ An AI-powered game development assistant that helps you create web games through
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/game-agent.git
+# Clone the repository (with submodules for templates)
+git clone --recursive https://github.com/yourusername/game-agent.git
 cd game-agent
 
-# Install dependencies
+# Install dependencies (will also fetch submodules if missed)
 bun install
 
 # Set up environment variables

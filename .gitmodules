@@ -1,3 +1,6 @@
 [submodule "packages/opencode"]
 	path = packages/opencode
 	url = https://github.com/anomalyco/opencode.git
+[submodule "apps/server/src/engine/phaser-2d/templates/CardGame"]
+	path = apps/server/src/engine/phaser-2d/templates/CardGame
+	url = git@github.com:kllilizxc/CardGame.git

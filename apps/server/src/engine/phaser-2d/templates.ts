@@ -1,56 +1,123 @@
 import type { FileMap, TemplateInfo } from "../adapter"
+import * as fs from "fs"
+import * as path from "path"
 
+const TEMPLATES_DIR = path.join(__dirname, "templates")
+
+/**
+ * Recursively reads all files in a directory and returns a FileMap
+ */
+function readFilesRecursive(baseDir: string, relativePath: string): FileMap {
+  const result: FileMap = {}
+  const fullPath = path.join(baseDir, relativePath)
+
+  for (const entry of fs.readdirSync(fullPath, { withFileTypes: true })) {
+    const entryRelativePath = relativePath ? `${relativePath}/${entry.name}` : entry.name
+
+    if (entry.isDirectory()) {
+      Object.assign(result, readFilesRecursive(baseDir, entryRelativePath))
+    } else if (entry.isFile() && entry.name !== "template.json") {
+      result[entryRelativePath] = fs.readFileSync(path.join(fullPath, entry.name), "utf-8")
+    }
+  }
+
+  return result
+}
+
+/**
+ * Load templates from the file system (templates/ folder)
+ */
+export function loadFileBasedTemplates(): { templates: TemplateInfo[], templateFiles: Record<string, FileMap> } {
+  const templates: TemplateInfo[] = []
+  const templateFiles: Record<string, FileMap> = {}
+
+  if (!fs.existsSync(TEMPLATES_DIR)) {
+    return { templates, templateFiles }
+  }
+
+  for (const folder of fs.readdirSync(TEMPLATES_DIR, { withFileTypes: true })) {
+    if (!folder.isDirectory()) continue
+
+    const templatePath = path.join(TEMPLATES_DIR, folder.name)
+    const metadataPath = path.join(templatePath, "template.json")
+    const packagePath = path.join(templatePath, "package.json")
+
+    let metadata: any = {}
+
+    if (fs.existsSync(metadataPath)) {
+      try {
+        metadata = JSON.parse(fs.readFileSync(metadataPath, "utf-8"))
+      } catch (e) {
+        console.warn(`Failed to parse template.json for ${folder.name}`, e)
+      }
+    } else if (fs.existsSync(packagePath)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(packagePath, "utf-8"))
+        metadata.name = pkg.name
+        metadata.description = pkg.description
+      } catch (e) { }
+    }
+
+    templates.push({
+      id: folder.name,
+      name: metadata.name || folder.name,
+      description: metadata.description || "Local template",
+      thumbnail: metadata.thumbnail || "📁",
+      ...metadata
+    })
+
+    // Load all files (recursively)
+    templateFiles[folder.name] = readFilesRecursive(templatePath, "")
+  }
+
+  return { templates, templateFiles }
+}
 export const templates: TemplateInfo[] = [
-    {
-        id: "blank",
-        name: "Blank Canvas",
-        description: "A minimal Phaser setup with a single scene.",
-        thumbnail: "🎨",
-    },
-    {
-        id: "platformer",
-        name: "Platformer",
-        description: "Basic platformer with jumping, gravity, and platforms.",
-        thumbnail: "🏃",
-    },
-    {
-        id: "shooter",
-        name: "Space Shooter",
-        description: "Top-down space shooter with player, enemies, and bullets.",
-        thumbnail: "🚀",
-    },
-    {
-        id: "puzzle",
-        name: "Puzzle Grid",
-        description: "Grid-based interactive puzzle system.",
-        thumbnail: "🧩",
-    },
+
+  {
+    id: "platformer",
+    name: "Platformer",
+    description: "Basic platformer with jumping, gravity, and platforms.",
+    thumbnail: "🏃",
+  },
+  {
+    id: "shooter",
+    name: "Space Shooter",
+    description: "Top-down space shooter with player, enemies, and bullets.",
+    thumbnail: "🚀",
+  },
+  {
+    id: "puzzle",
+    name: "Puzzle Grid",
+    description: "Grid-based interactive puzzle system.",
+    thumbnail: "🧩",
+  },
 ]
 
 const commonFiles = {
-    "package.json": JSON.stringify(
-        {
-            name: "phaser-game",
-            private: true,
-            type: "module",
-            scripts: {
-                dev: "vite",
-                build: "vite build",
-                preview: "vite preview",
-            },
-            dependencies: {
-                phaser: "^3.80.1",
-            },
-            devDependencies: {
-                vite: "^5.4.2",
-                typescript: "^5.5.4",
-            },
-        },
-        null,
-        2
-    ),
+  "package.json": JSON.stringify(
+    {
+      name: "phaser-game",
+      private: true,
+      type: "module",
+      scripts: {
+        dev: "vite",
+        build: "vite build",
+        preview: "vite preview",
+      },
+      dependencies: {
+        phaser: "^3.80.1",
+      },
+      devDependencies: {
+        vite: "^5.4.2",
+        typescript: "^5.5.4",
+      },
+    },
+    null,
+    2
+  ),
 
-    "index.html": `<!DOCTYPE html>
+  "index.html": `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -67,23 +134,23 @@ const commonFiles = {
 </body>
 </html>`,
 
-    "tsconfig.json": JSON.stringify(
-        {
-            compilerOptions: {
-                target: "ES2020",
-                module: "ESNext",
-                moduleResolution: "bundler",
-                strict: true,
-                skipLibCheck: true,
-                esModuleInterop: true,
-            },
-            include: ["src"],
-        },
-        null,
-        2
-    ),
+  "tsconfig.json": JSON.stringify(
+    {
+      compilerOptions: {
+        target: "ES2020",
+        module: "ESNext",
+        moduleResolution: "bundler",
+        strict: true,
+        skipLibCheck: true,
+        esModuleInterop: true,
+      },
+      include: ["src"],
+    },
+    null,
+    2
+  ),
 
-    "vite.config.ts": `import { defineConfig } from "vite"
+  "vite.config.ts": `import { defineConfig } from "vite"
 
 export default defineConfig({
   base: "./",
@@ -96,61 +163,11 @@ export default defineConfig({
 }
 
 export const templateFiles: Record<string, FileMap> = {
-    blank: {
-        ...commonFiles,
-        "src/main.ts": `import Phaser from "phaser"
-import { MainScene } from "./scenes/MainScene"
 
-const config: Phaser.Types.Core.GameConfig = {
-  type: Phaser.AUTO,
-  width: 800,
-  height: 600,
-  backgroundColor: "#2d2d44",
-  physics: {
-    default: "arcade",
-    arcade: {
-      gravity: { x: 0, y: 0 },
-      debug: false,
-    },
-  },
-  scene: [MainScene],
-}
 
-new Phaser.Game(config)
-`,
-        "src/scenes/MainScene.ts": `import Phaser from "phaser"
-
-export class MainScene extends Phaser.Scene {
-  constructor() {
-    super("MainScene")
-  }
-
-  preload() {
-    // Load assets here
-  }
-
-  create() {
-    this.add.text(400, 300, "Hello Phaser!", {
-      fontSize: "48px",
-      color: "#ffffff",
-    }).setOrigin(0.5)
-
-    this.add.text(400, 360, "Edit src/scenes/MainScene.ts to start!", {
-      fontSize: "20px",
-      color: "#aaaaaa",
-    }).setOrigin(0.5)
-  }
-
-  update() {
-    // Game loop logic here
-  }
-}
-`,
-    },
-
-    platformer: {
-        ...commonFiles,
-        "src/main.ts": `import Phaser from "phaser"
+  platformer: {
+    ...commonFiles,
+    "src/main.ts": `import Phaser from "phaser"
 import { MainScene } from "./scenes/MainScene"
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -170,7 +187,7 @@ const config: Phaser.Types.Core.GameConfig = {
 
 new Phaser.Game(config)
 `,
-        "src/scenes/MainScene.ts": `import Phaser from "phaser"
+    "src/scenes/MainScene.ts": `import Phaser from "phaser"
 
 export class MainScene extends Phaser.Scene {
   private player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody
@@ -234,11 +251,11 @@ export class MainScene extends Phaser.Scene {
   }
 }
 `,
-    },
+  },
 
-    shooter: {
-        ...commonFiles,
-        "src/main.ts": `import Phaser from "phaser"
+  shooter: {
+    ...commonFiles,
+    "src/main.ts": `import Phaser from "phaser"
 import { MainScene } from "./scenes/MainScene"
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -258,7 +275,7 @@ const config: Phaser.Types.Core.GameConfig = {
 
 new Phaser.Game(config)
 `,
-        "src/scenes/MainScene.ts": `import Phaser from "phaser"
+    "src/scenes/MainScene.ts": `import Phaser from "phaser"
 
 export class MainScene extends Phaser.Scene {
   private player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody
@@ -331,11 +348,11 @@ export class MainScene extends Phaser.Scene {
   }
 }
 `,
-    },
+  },
 
-    puzzle: {
-        ...commonFiles,
-        "src/main.ts": `import Phaser from "phaser"
+  puzzle: {
+    ...commonFiles,
+    "src/main.ts": `import Phaser from "phaser"
 import { MainScene } from "./scenes/MainScene"
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -348,7 +365,7 @@ const config: Phaser.Types.Core.GameConfig = {
 
 new Phaser.Game(config)
 `,
-        "src/scenes/MainScene.ts": `import Phaser from "phaser"
+    "src/scenes/MainScene.ts": `import Phaser from "phaser"
 
 export class MainScene extends Phaser.Scene {
   private gridSize = 8
@@ -407,5 +424,5 @@ export class MainScene extends Phaser.Scene {
   }
 }
 `,
-    },
+  },
 }

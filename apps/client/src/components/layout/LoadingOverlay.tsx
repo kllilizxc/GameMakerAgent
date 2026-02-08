@@ -5,7 +5,7 @@ import { usePreviewStore } from "@/stores/preview"
 const PROGRESS_BREAKPOINTS = {
     idle: 5,
     booting: 25,
-    installing: 95,
+    installing: 99,
     complete: 100,
 } as const
 

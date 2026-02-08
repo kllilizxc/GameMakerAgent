@@ -1,5 +1,17 @@
-import { templateFiles, templates } from "./templates"
+import { templateFiles, templates, loadFileBasedTemplates } from "./templates"
 import type { EngineAdapter, FileMap } from "../adapter"
+
+// Helper to get merged templates
+function getMergedTemplates() {
+  const fileTemplates = loadFileBasedTemplates()
+  // Filter out inline templates that are overridden by file templates
+  const inlineTemplates = templates.filter(t => !fileTemplates.templates.find(ft => ft.id === t.id))
+
+  return {
+    templates: [...inlineTemplates, ...fileTemplates.templates],
+    files: { ...templateFiles, ...fileTemplates.templateFiles }
+  }
+}
 
 export const phaser2dAdapter: EngineAdapter = {
   engineId: "phaser-2d",
@@ -15,15 +27,18 @@ export const phaser2dAdapter: EngineAdapter = {
   },
 
   templateSeed(templateId = "blank"): FileMap {
-    const template = templateFiles[templateId]
+    const { files } = getMergedTemplates()
+    const template = files[templateId]
+
     if (!template) {
       console.warn(`Template "${templateId}" not found, falling back to blank`)
-      return templateFiles.blank
+      return files.blank
     }
     return template
   },
 
   getTemplates() {
+    const { templates } = getMergedTemplates()
     return templates
   },
 
