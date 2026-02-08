@@ -211,7 +211,8 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
       if (session.opencodeSessionId) {
         const ocMessages = await Session.messages({
           sessionID: session.opencodeSessionId,
-          limit: msg.limit
+          limit: msg.limit,
+          offset: msg.skip,
         })
         result = transformMessages(ocMessages)
       }
