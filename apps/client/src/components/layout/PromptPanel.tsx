@@ -5,7 +5,7 @@ import { PromptHeader } from "@/components/prompt/PromptHeader"
 import { PromptInput } from "@/components/prompt/PromptInput"
 import { MobilePromptPanel } from "@/components/prompt/MobilePromptPanel"
 import { MessageList } from "@/components/messages/MessageList"
-import { useScrollToBottom } from "@/hooks/useScrollToBottom"
+import { useMessageScroll } from "@/hooks/useMessageScroll"
 
 interface PromptPanelProps {
   mobile?: boolean
@@ -13,7 +13,16 @@ interface PromptPanelProps {
 
 export function PromptPanel({ mobile }: PromptPanelProps) {
   const [expanded, setExpanded] = useState(!mobile)
-  const { status, messages, activities, sendPrompt, interrupt } = useSessionStore()
+  const {
+    status,
+    messages,
+    activities,
+    sendPrompt,
+    interrupt,
+    loadMoreMessages,
+    hasMoreMessages,
+    isLoadingMore,
+  } = useSessionStore()
 
   const isLoading = status === "running"
 
@@ -22,7 +31,13 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
     isDisabled: isLoading,
   })
 
-  const { scrollRef, bottomRef, handleScroll } = useScrollToBottom({ messages, activities })
+  const { scrollContainerRef } = useMessageScroll({
+    messages,
+    activities,
+    onLoadMore: loadMoreMessages,
+    hasMore: hasMoreMessages,
+    isLoadingMore,
+  })
 
   // Mobile layout
   if (mobile) {
@@ -44,14 +59,12 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
     <div className="flex flex-col h-full">
       <PromptHeader />
 
-      {/* Messages */}
+      {/* Messages - scroll container */}
       <div
         className="flex-1 overflow-y-auto overflow-x-hidden p-4 custom-scrollbar"
-        ref={scrollRef}
-        onScroll={handleScroll}
+        ref={scrollContainerRef}
       >
         <MessageList messages={messages} />
-        <div ref={bottomRef} className="h-px" />
       </div>
 
       {/* Input */}

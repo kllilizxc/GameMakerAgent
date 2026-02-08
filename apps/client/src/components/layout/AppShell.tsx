@@ -93,7 +93,7 @@ export function AppShell() {
       )}
     >
       {/* Loading overlay */}
-      <LoadingOverlay />
+      {/* <LoadingOverlay /> */}
 
       {/* Desktop: Left panel | Mobile: rendered at bottom */}
       {!isMobile && (

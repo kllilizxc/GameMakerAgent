@@ -5,29 +5,20 @@ import { useSessionStore } from "@/stores/session"
 import { Loader2, AlertCircle } from "lucide-react"
 import type { Message } from "@/types/session"
 import { useMessageTimeline } from "@/hooks/useMessageTimeline"
-import InfiniteScroll from "react-infinite-scroller"
-import { useRef } from "react"
 
 interface MessageListProps {
   messages: Message[]
-  isReady?: boolean
 }
 
-export function MessageList({ messages, isReady = true }: MessageListProps) {
+export function MessageList({ messages }: MessageListProps) {
   const activities = useSessionStore((s) => s.activities)
   const status = useSessionStore((s) => s.status)
   const error = useSessionStore((s) => s.error)
   const todos = useSessionStore((s) => s.todos)
-
-  const loadMoreMessages = useSessionStore((s) => s.loadMoreMessages)
-  const hasMoreMessages = useSessionStore((s) => s.hasMoreMessages)
   const isLoadingMore = useSessionStore((s) => s.isLoadingMore)
 
-  // 1. Timeline Management
+  // Timeline Management - merges messages and activities
   const timeline = useMessageTimeline(messages, activities)
-
-  // Ref for scroll parent
-  const scrollParentRef = useRef<HTMLDivElement | null>(null)
 
   const validMessages = messages.filter((msg) => msg.content.trim().length > 0)
 
@@ -41,36 +32,22 @@ export function MessageList({ messages, isReady = true }: MessageListProps) {
   }
 
   return (
-    <div className="space-y-4" ref={scrollParentRef}>
-      <InfiniteScroll
-        pageStart={0}
-        loadMore={() => {
-          if (!isLoadingMore && isReady && hasMoreMessages) {
-            loadMoreMessages()
-          }
-        }}
-        hasMore={isReady && hasMoreMessages && !isLoadingMore}
-        loader={
-          <div className="flex justify-center py-2 h-8" key="loader" style={{ display: isLoadingMore ? "flex" : "none" }}>
-            <Loader2 size={16} className="animate-spin text-muted-foreground" />
-          </div>
-        }
-        isReverse={true}
-        useWindow={false}
-        getScrollParent={() => scrollParentRef.current?.parentElement || null}
-        className="space-y-4"
-        initialLoad={false}
-        threshold={100}
-      >
+    <div className="space-y-4">
+      {/* Loading indicator at top when loading more messages */}
+      {isLoadingMore && (
+        <div className="flex justify-center py-2">
+          <Loader2 size={16} className="animate-spin text-muted-foreground" />
+        </div>
+      )}
 
-        {timeline.map((item) =>
-          item.type === "message" ? (
-            <MessageItem key={item.data.id} message={item.data} />
-          ) : (
-            <ActivityGroup key={`group-${item.data[0].id}`} activities={item.data} />
-          )
-        )}
-      </InfiniteScroll>
+      {/* Timeline items */}
+      {timeline.map((item) =>
+        item.type === "message" ? (
+          <MessageItem key={item.data.id} message={item.data} />
+        ) : (
+          <ActivityGroup key={`group-${item.data[0].id}`} activities={item.data} />
+        )
+      )}
 
       {/* Display todos from session store */}
       {todos && todos.length > 0 && (
