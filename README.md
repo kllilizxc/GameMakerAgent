@@ -1,74 +1,119 @@
-# game-agent-opencode
+# 🎮 Game Agent
 
-A monorepo for building a game-making agent service on top of OpenCode.
+An AI-powered game development assistant that helps you create web games through natural language conversation. Describe your game idea, and the agent will generate, iterate, and refine the code in real-time.
 
-## Structure
+## 🎬 Demo
+
+![Template Screenshot](docs/images/template.png)
+
+<!-- Add your demo screenshot here -->
+![Demo Screenshot](docs/images/demo.png)
+
+<!-- Add your demo GIF or video link here -->
+![Demo GIF](docs/images/demo.gif)
+
+
+## ✨ Features
+
+- **Natural Language Game Creation** — Describe your game in plain English, and watch it come to life
+- **Real-time Code Generation** — See code being written as you chat with the agent
+- **Live Preview** — Instantly preview your game as it's being built
+- **Iterative Development** — Request changes and refinements through conversation
+- **File System Visualization** — Browse and edit generated code in an integrated editor
+- **Cross-platform** — Web-based client with iOS support via Capacitor
+
+## 🏗️ Architecture
 
 ```
-├── packages/
-│   ├── opencode/                    # Git submodule (read-only)
-│   │   └── packages/opencode/src/
-│   │       └── game-agent/          # YOUR wrapper code lives here
-│   │           └── index.ts         # Agent runtime and API
-│   └── agent/                       # Re-exports from game-agent
-│       └── src/
-│           ├── index.ts             # Re-exports @game-agent/agent
-│           └── test.ts              # Test file
 ├── apps/
-│   ├── server/                      # Future server application
-│   └── web/                         # Future web application
-└── package.json
+│   ├── client/          # React + Vite frontend
+│   │   ├── components/  # UI components (chat, editor, preview)
+│   │   ├── hooks/       # Custom React hooks
+│   │   └── stores/      # Zustand state management
+│   └── server/          # Bun + Elysia backend
+│       ├── routes/      # API endpoints
+│       └── services/    # Agent orchestration
+└── packages/
+    ├── agent/           # AI agent runtime
+    ├── common/          # Shared types and utilities
+    └── perf/            # Performance monitoring
 ```
 
-## Why code lives inside opencode?
+## 🛠️ Tech Stack
 
-OpenCode uses `@/*` path aliases internally. These only resolve when running from the opencode directory context. By placing your wrapper code inside `packages/opencode/packages/opencode/src/game-agent/`, all imports resolve correctly.
+### Frontend
+- **React 18** with TypeScript
+- **Vite** for fast development
+- **TailwindCSS** for styling
+- **CodeMirror 6** for code editing
+- **Zustand** for state management
+- **Capacitor** for iOS deployment
 
-## Setup
+### Backend
+- **Bun** runtime for blazing fast performance
+- **Elysia** web framework
+- **WebSocket** for real-time streaming
+- **AI SDK** for LLM integration
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- [Bun](https://bun.sh) v1.3+
+- Node.js 18+ (for some tooling)
+
+### Installation
 
 ```bash
-# Install root dependencies
+# Clone the repository
+git clone https://github.com/yourusername/game-agent.git
+cd game-agent
+
+# Install dependencies
 bun install
 
-# Install OpenCode dependencies
-bun install --cwd packages/opencode
+# Set up environment variables
+cp .env.example .env
+# Add your API keys to .env
 ```
 
-## Run the test
+### Development
 
 ```bash
-bun run test:agent "Design a 2D platformer game"
+# Start both client and server
+bun run dev
+
+# Or run separately:
+bun run dev:server   # Backend on http://localhost:3000
+bun run dev:client   # Frontend on http://localhost:5173
 ```
 
-## API Usage
+### Build for Production
 
-```typescript
-import { run, AgentEvent } from "@game-agent/agent"
-
-await run(process.cwd(), { prompt: "Build a game" }, (event: AgentEvent) => {
-  if (event.type === "text") {
-    console.log(event.data.text)
-  }
-  if (event.type === "tool") {
-    console.log(`Tool: ${event.data.tool}`)
-  }
-})
+```bash
+# Build the client
+bun run build:client
 ```
 
-## Exported Functions
+## 📱 iOS Development
 
-- `run(cwd, input, onEvent?)` - Run an agent session
-- `bootstrap` - OpenCode bootstrap function
-- `Session` - Session management
-- `SessionPrompt` - Prompt handling
-- `Provider` - Model provider
-- `Agent` - Agent configuration
-- `Bus` - Event bus
-- `MessageV2` - Message types
-- `Log` - Logging
+```bash
+cd apps/client
 
-## Updating OpenCode
+# Sync with iOS project
+bun run ios:sync
 
-See `UPDATE_OPENCODE.md` for git submodule update commands.
+# Open in Xcode
+bun run ios:open
 
-**Note**: Your code in `packages/opencode/packages/opencode/src/game-agent/` will NOT be overwritten when updating the submodule, as long as you don't reset the submodule. However, consider backing up your changes or tracking them separately.
+# Run on device/simulator
+bun run ios
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+MIT License — feel free to use this project for learning and development.
