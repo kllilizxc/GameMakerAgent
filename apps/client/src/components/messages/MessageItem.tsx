@@ -47,7 +47,7 @@ export function MessageItem({ message }: MessageItemProps) {
         {message.role === "user" && (
           <button
             onClick={() => rewind(message.id, true, message.content)}
-            className="p-1 hover:bg-black/20 rounded text-xs flex items-center gap-1"
+            className="p-1 hover:bg-secondary rounded-full text-xs flex items-center gap-1"
             title="Rewind to this prompt"
           >
             <Undo2 className="w-3 h-3" />
