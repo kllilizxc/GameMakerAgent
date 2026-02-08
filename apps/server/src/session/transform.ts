@@ -40,12 +40,20 @@ export function transformMessages(ocMessages: MessageV2.WithParts[]): ClientMess
             const state = t.state
             let title = state.status === "completed" ? state.title : undefined
 
-            // Fallback: Try to extract path from input if title is missing
-            // This handles cases where tools like str_replace/write_file might not set a title but have a path
+            // Fallback: Try to extract title from input if missing
+            // This handles cases where tools like str_replace/write_file might not set a title but have parameters
             if (!title && state.input) {
                 const input = state.input as Record<string, any>
                 if (input.path && typeof input.path === "string") {
                     title = input.path
+                } else if (input.filePath && typeof input.filePath === "string") {
+                    title = input.filePath
+                } else if (input.command && typeof input.command === "string") {
+                    title = input.command
+                } else if (input.pattern && typeof input.pattern === "string") {
+                    title = input.pattern
+                } else if (input.url && typeof input.url === "string") {
+                    title = input.url
                 }
             }
 

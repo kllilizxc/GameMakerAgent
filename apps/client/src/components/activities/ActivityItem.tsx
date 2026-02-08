@@ -9,16 +9,23 @@ interface ActivityItemProps {
 
 /** Strip workspace prefix (e.g., "workspaces/ses_xxx/") from file paths */
 function formatFilePath(path: string): string {
-  // Match pattern: workspaces/ses_<id>/ and remove it
-  return path.replace(/^workspaces\/ses_[^/]+\//, "")
+  // Match absolute or relative workspace paths and strip the prefix
+  // Regex explanation:
+  // ([^\s"']*[\\/])? -> Optional prefix (absolute path parts) ending in / or \ (non-whitespace/quote)
+  // workspaces[\\/]ses_[^\\/]+[\\/] -> The workspace directory pattern
+  // 'g' flag to handle multiple paths in a single string (e.g. commands)
+  return path.replace(/([^\s"']*[\\/])?workspaces[\\/]ses_[^\\/]+[\\/]/g, "")
 }
 
 export function ActivityItem({ activity }: ActivityItemProps) {
   const [expanded, setExpanded] = useState(false)
 
+  const title = activity.type === "tool" && activity.data.title ? formatFilePath(activity.data.title) : ""
+  const path = activity.type === "file" && activity.data.path ? formatFilePath(activity.data.path) : ""
+
   const hasExpandableContent =
-    (activity.type === "tool" && activity.data.title && activity.data.title.length > 50) ||
-    (activity.type === "file" && activity.data.path && activity.data.path.length > 40) ||
+    (activity.type === "tool" && title.length > 50) ||
+    (activity.type === "file" && path.length > 40) ||
     (activity.type === "text" && activity.data.text && activity.data.text.length > 60)
 
   return (
@@ -35,7 +42,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
                   expanded ? "max-h-[500px]" : "max-h-[1rem]" // text-xs has line-height 1rem
                 )}
               >
-                {formatFilePath(activity.data.title)}
+                {title}
               </div>
             )}
           </div>
@@ -59,7 +66,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
               expanded ? "max-h-[500px]" : "max-h-[1rem]"
             )}
           >
-            <span className="text-foreground">Modified:</span> {formatFilePath(activity.data.path || "")}
+            <span className="text-foreground">Modified:</span> {path || ""}
           </div>
           {hasExpandableContent && (
             <button
