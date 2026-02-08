@@ -43,15 +43,14 @@ export function MessageItem({ message }: MessageItemProps) {
         )}
       </div>
 
-      <div className="absolute top-2 -left-12 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-3 -left-6 opacity-0 group-hover:opacity-100 transition-opacity">
         {message.role === "user" && (
           <button
             onClick={() => rewind(message.id, true, message.content)}
             className="p-1 hover:bg-black/20 rounded text-xs flex items-center gap-1"
-            title="Edit this prompt"
+            title="Rewind to this prompt"
           >
             <Undo2 className="w-3 h-3" />
-            Edit
           </button>
         )}
       </div>
