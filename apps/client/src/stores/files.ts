@@ -7,18 +7,25 @@ interface FilePatch {
   op: "write" | "delete" | "mkdir"
   path: string
   content?: string
+  encoding?: "utf-8" | "base64"
+}
+
+interface FileEntry {
+  content: string
+  encoding: "utf-8" | "base64"
 }
 
 interface FilesState {
-  files: Map<string, string>
+  files: Map<string, FileEntry>
   selectedFile: string | null
   pendingPatches: FilePatch[]
 
   applyPatch: (patch: FilePatch) => void
   applyPatches: (patches: FilePatch[]) => void
-  setSnapshot: (files: Record<string, string>) => void
+  setSnapshot: (files: Record<string, string | { content: string, encoding: "utf-8" | "base64" }>) => void
   selectFile: (path: string | null) => void
   getFileContent: (path: string) => string | undefined
+  getFileEntry: (path: string) => FileEntry | undefined
   getFileList: () => string[]
   reset: () => void
 }
@@ -37,7 +44,10 @@ export const useFilesStore = create<FilesState>()(
           switch (patch.op) {
             case "write":
               if (patch.content !== undefined) {
-                files.set(patch.path, patch.content)
+                files.set(patch.path, {
+                  content: patch.content,
+                  encoding: patch.encoding || "utf-8"
+                })
               }
               break
             case "delete":
@@ -56,8 +66,14 @@ export const useFilesStore = create<FilesState>()(
         patches.forEach((patch) => get().applyPatch(patch))
       },
 
-      setSnapshot: (snapshot: Record<string, string>) => {
-        const files = new Map(Object.entries(snapshot))
+      setSnapshot: (snapshot: Record<string, string | { content: string, encoding: "utf-8" | "base64" }>) => {
+        const entries: [string, FileEntry][] = Object.entries(snapshot).map(([path, data]) => {
+          if (typeof data === 'string') {
+            return [path, { content: data, encoding: "utf-8" }]
+          }
+          return [path, data]
+        })
+        const files = new Map(entries)
         const selectedFile = files.size > 0 ? Array.from(files.keys())[0] : null
         set({ files, selectedFile })
       },
@@ -67,6 +83,10 @@ export const useFilesStore = create<FilesState>()(
       },
 
       getFileContent: (path: string) => {
+        return get().files.get(path)?.content
+      },
+
+      getFileEntry: (path: string) => {
         return get().files.get(path)
       },
 

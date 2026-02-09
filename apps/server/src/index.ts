@@ -1,4 +1,4 @@
-import { Elysia } from "elysia"
+import { Elysia, t } from "elysia"
 import { cors } from "@elysiajs/cors"
 import { ensureWorkspacesDir } from "./session/workspace"
 import { listEngines, getEngine } from "./engine/registry"
@@ -29,6 +29,82 @@ const app = new Elysia()
     return { success: true }
   })
   .ws("/ws", wsHandler)
+  .post("/api/generate-image", async ({ body }: { body: { prompt: string, size?: string, model?: string } }) => {
+    const { OpenAI } = await import("openai")
+    const client = new OpenAI({
+      baseURL: process.env.NANOBANANA_BASE_URL || "http://127.0.0.1:8045/v1",
+      apiKey: process.env.NANOBANANA_API_KEY || "sk-0c30858760cf47fe9d6e438da54d3808"
+    })
+
+    const response = await client.chat.completions.create({
+      model: body.model || "gemini-3-pro-image",
+      extra_body: { "size": body.size || "1024x1024" },
+      messages: [{
+        "role": "user",
+        "content": body.prompt
+      }]
+    })
+
+    return { content: response.choices[0].message.content }
+  })
+  .post("/api/save-image", async ({ body }: { body: { imageUrl: string, type: string, sessionId: string } }) => {
+    const { join, dirname } = await import("node:path")
+    const { existsSync, mkdirSync, writeFileSync } = await import("node:fs")
+    const { loadSession, broadcast, nextSeq } = await import("./session/manager")
+    const { workspacePath } = await import("./session/workspace")
+
+    // Validate session
+    const session = await loadSession(body.sessionId)
+    if (!session) {
+      throw new Error(`Session not found: ${body.sessionId}`)
+    }
+
+    const rootDir = workspacePath(body.sessionId)
+    // Assets under "assets/{type}" relative to workspace root
+    const relativeDir = join("assets", body.type || "misc")
+    const targetDir = join(rootDir, relativeDir)
+
+    if (!existsSync(targetDir)) {
+      mkdirSync(targetDir, { recursive: true })
+    }
+
+    const fileName = `asset-${Date.now()}.png`
+    const filePath = join(targetDir, fileName)
+    const relativePath = join(relativeDir, fileName)
+
+    // Fetch image
+    const imageResponse = await fetch(body.imageUrl)
+    const arrayBuffer = await imageResponse.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    writeFileSync(filePath, buffer)
+
+    // Broadcast change to client
+    const base64Content = buffer.toString("base64")
+
+    broadcast(session, {
+      type: "fs/patch",
+      sessionId: session.id,
+      runId: session.currentRunId || "", // runId might be needed by protocol? checking protocol... yes, RunStarted/AgentEvent needs it. FsPatch needs it?
+      // checking FsPatchMessage definition: type: "fs/patch", sessionId: string, runId: string, seq: number, ops: FsPatchOp[]
+      // Let's use session.currentRunId or empty string if not running.
+      seq: nextSeq(session),
+      ops: [{
+        op: "write",
+        path: relativePath,
+        content: base64Content,
+        encoding: "base64"
+      }]
+    })
+
+    return { success: true, path: `/${relativePath}` }
+  }, {
+    body: t.Object({
+      imageUrl: t.String(),
+      type: t.String(),
+      sessionId: t.String()
+    })
+  })
   .listen({ port: PORT, hostname: HOST })
 
 console.log(`🎮 Game Agent Server v2.0`)

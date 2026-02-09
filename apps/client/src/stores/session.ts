@@ -548,26 +548,68 @@ function handleServerMessage(
     case "fs/patch": {
       const ops = msg.ops as FsPatch[] | undefined
       if (ops) {
+        // Handle sync store updates strictly synchronously
         const filesStore = useFilesStore.getState()
-        ops.forEach((patch) => {
-          filesStore.applyPatch(patch)
-          useSessionStore.getState().addActivity({
-            type: "file",
-            data: { path: patch.path },
-          })
-        })
+
+          // Trigger async WebContainer sync
+          ; (async () => {
+            try {
+              const { getWebContainer } = await import("@/hooks/useWebContainer")
+              const wc = await getWebContainer()
+
+              for (const patch of ops) {
+                // Store update (sync)
+                filesStore.applyPatch(patch)
+                useSessionStore.getState().addActivity({
+                  type: "file",
+                  data: { path: patch.path },
+                })
+
+                // WebContainer update (async)
+                if (wc) {
+                  if (patch.op === "write" && patch.content !== undefined) {
+                    const parts = patch.path.split("/")
+                    parts.pop()
+                    const dir = parts.join("/")
+                    if (dir) {
+                      await wc.fs.mkdir(dir, { recursive: true })
+                    }
+
+                    if (patch.encoding === "base64") {
+                      const binaryString = atob(patch.content)
+                      const bytes = new Uint8Array(binaryString.length)
+                      for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i)
+                      }
+                      await wc.fs.writeFile(patch.path, bytes)
+                    } else {
+                      await wc.fs.writeFile(patch.path, patch.content)
+                    }
+                  } else if (patch.op === "delete") {
+                    await wc.fs.rm(patch.path, { recursive: true }).catch(() => { })
+                  } else if (patch.op === "mkdir") {
+                    await wc.fs.mkdir(patch.path, { recursive: true }).catch(() => { })
+                  }
+                }
+              }
+            } catch (e) {
+              console.error("Failed to sync files to WebContainer:", e)
+            }
+          })()
       }
       break
     }
 
     case "fs/snapshot": {
-      const snapshot = msg.files as Record<string, string> | undefined
+      const snapshot = msg.files as Record<string, string | { content: string, encoding: "utf-8" | "base64" }> | undefined
 
       if (snapshot) {
         const receivedSessionId = msg.sessionId as string
         // Store sessionId from snapshot
         set({ sessionId: receivedSessionId })
         useFilesStore.getState().setSnapshot(snapshot)
+
+
       }
       break
     }

@@ -9,13 +9,14 @@
     "start": "bun run src/index.ts"
   },
   "dependencies": {
+    "@elysiajs/cors": "^1.1.0",
     "@game-agent/agent": "workspace:*",
     "@game-agent/common": "workspace:*",
     "@game-agent/perf": "workspace:*",
+    "chokidar": "^3.6.0",
     "elysia": "^1.1.0",
-    "@elysiajs/cors": "^1.1.0",
-    "zod": "^3.23.8",
     "nanoid": "^5.0.7",
-    "chokidar": "^3.6.0"
+    "openai": "^6.18.0",
+    "zod": "^3.23.8"
   }
 }

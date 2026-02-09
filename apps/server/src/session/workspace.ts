@@ -45,10 +45,10 @@ export async function deleteWorkspace(sessionId: string): Promise<void> {
   await rm(dir, { recursive: true, force: true })
 }
 
-export async function readWorkspaceFiles(sessionId: string): Promise<FileMap> {
+export async function readWorkspaceFiles(sessionId: string): Promise<Record<string, string | { content: string, encoding: "utf-8" | "base64" }>> {
   using timer = Perf.time("file", "read-workspace")
   const dir = workspacePath(sessionId)
-  const files: FileMap = {}
+  const files: Record<string, string | { content: string, encoding: "utf-8" | "base64" }> = {}
 
   async function walk(current: string) {
     const entries = await readdir(current, { withFileTypes: true })
@@ -60,8 +60,23 @@ export async function readWorkspaceFiles(sessionId: string): Promise<FileMap> {
       } else {
         const rel = relative(dir, full)
         const info = await stat(full)
-        if (info.size < 1024 * 100) {
-          files[rel] = await readFile(full, "utf-8")
+
+        // Check for binary extensions
+        const isBinary = /\.(png|jpg|jpeg|gif|webp|ico|bmp)$/i.test(rel)
+
+        // Limit size: 1MB for binary, 100kb for text
+        const limit = isBinary ? 1024 * 1024 * 5 : 1024 * 100
+
+        if (info.size < limit) {
+          if (isBinary) {
+            const buffer = await readFile(full)
+            files[rel] = {
+              content: buffer.toString("base64"),
+              encoding: "base64"
+            }
+          } else {
+            files[rel] = await readFile(full, "utf-8")
+          }
         }
       }
     }
@@ -105,6 +120,7 @@ const METADATA_FILE = ".agent/metadata.json"
 export interface SessionMetadata {
   opencodeSessionId?: string
   templateId?: string
+  engineId?: string
   leafId?: string
   version: number
 }

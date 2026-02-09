@@ -43,6 +43,7 @@ export interface FsPatch {
   op: "write" | "delete" | "mkdir"
   path: string
   content?: string
+  encoding?: "utf-8" | "base64"
 }
 
 export interface TemplateInfo {

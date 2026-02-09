@@ -6,7 +6,7 @@ import { usePreviewStore } from "@/stores/preview"
 let webcontainerInstance: WebContainer | null = null
 let bootPromise: Promise<WebContainer> | null = null
 
-async function getWebContainer(): Promise<WebContainer> {
+export async function getWebContainer(): Promise<WebContainer> {
   if (webcontainerInstance) return webcontainerInstance
 
   if (!bootPromise) {
@@ -127,7 +127,7 @@ export function useWebContainer() {
   }, [setUrl, setStatus, addLog])
 
   const applyFilePatch = useCallback(
-    async (patch: { op: "write" | "delete" | "mkdir"; path: string; content?: string }) => {
+    async (patch: { op: "write" | "delete" | "mkdir"; path: string; content?: string; encoding?: "utf-8" | "base64" }) => {
       const wc = await getWebContainer()
       if (!wc) return
 
@@ -141,7 +141,18 @@ export function useWebContainer() {
               if (dir) {
                 await wc.fs.mkdir(dir, { recursive: true })
               }
-              await wc.fs.writeFile(patch.path, patch.content)
+
+              if (patch.encoding === "base64") {
+                // Convert base64 to Uint8Array
+                const binaryString = atob(patch.content)
+                const bytes = new Uint8Array(binaryString.length)
+                for (let i = 0; i < binaryString.length; i++) {
+                  bytes[i] = binaryString.charCodeAt(i)
+                }
+                await wc.fs.writeFile(patch.path, bytes)
+              } else {
+                await wc.fs.writeFile(patch.path, patch.content)
+              }
             }
             break
           case "delete":

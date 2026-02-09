@@ -120,7 +120,7 @@ export const AgentEventMessage = z.object({
 export type AgentEventMessage = z.infer<typeof AgentEventMessage>
 
 export const FsPatchOp = z.discriminatedUnion("op", [
-  z.object({ op: z.literal("write"), path: z.string(), content: z.string() }),
+  z.object({ op: z.literal("write"), path: z.string(), content: z.string(), encoding: z.enum(["utf-8", "base64"]).optional() }),
   z.object({ op: z.literal("delete"), path: z.string() }),
   z.object({ op: z.literal("mkdir"), path: z.string() }),
   z.object({ op: z.literal("asset"), path: z.string(), hash: z.string(), url: z.string() }),
@@ -141,7 +141,10 @@ export const FsSnapshotMessage = z.object({
   sessionId: z.string(),
   runId: z.string().optional(),
   seq: z.number(),
-  files: z.record(z.string()),
+  files: z.record(z.union([
+    z.string(),
+    z.object({ content: z.string(), encoding: z.enum(["utf-8", "base64"]) })
+  ])),
 })
 export type FsSnapshotMessage = z.infer<typeof FsSnapshotMessage>
 

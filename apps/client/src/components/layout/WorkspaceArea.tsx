@@ -3,9 +3,11 @@ import { cn } from "@/lib/utils"
 import { Code, Play, RefreshCw, Maximize2 } from "lucide-react"
 import { GamePreview } from "@/components/preview/GamePreview"
 import { CodeEditor } from "@/components/editor/CodeEditor"
+import { AssetGenerator } from "@/components/assets/AssetGenerator"
+import { Image as ImageIcon } from "lucide-react"
 import { usePreviewStore } from "@/stores/preview"
 
-type View = "preview" | "editor"
+type View = "preview" | "editor" | "assets"
 
 export function WorkspaceArea() {
   const [view, setView] = useState<View>("preview")
@@ -40,6 +42,18 @@ export function WorkspaceArea() {
           >
             <Code size={16} />
             Code
+          </button>
+          <button
+            onClick={() => setView("assets")}
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors",
+              view === "assets"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <ImageIcon size={16} />
+            Assets
           </button>
         </div>
 
@@ -83,6 +97,14 @@ export function WorkspaceArea() {
           )}
         >
           <CodeEditor />
+        </div>
+        <div
+          className={cn(
+            "absolute inset-0 transition-opacity duration-200 bg-background",
+            view === "assets" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+          )}
+        >
+          <AssetGenerator />
         </div>
       </div>
     </div>

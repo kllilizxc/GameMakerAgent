@@ -170,10 +170,45 @@ export async function createSession(engineId: EngineId, templateId?: string, des
   // Save initial metadata
   saveMetadata(id, {
     templateId,
+    engineId,
     version: 1
   }).catch(err => console.error(`[session] Failed to save metadata for ${id}:`, err))
 
   return session
+}
+
+export async function loadSession(id: string): Promise<Session | undefined> {
+  const existing = sessions.get(id)
+  if (existing) return existing
+
+  const dir = workspacePath(id)
+  try {
+    const stats = await stat(dir)
+    if (!stats.isDirectory()) return undefined
+
+    const metadata = await loadMetadata(id)
+
+    // Default to phaser-2d if missing (legacy sessions)
+    const engineId = (metadata?.engineId || "phaser-2d") as EngineId
+
+    const session: Session = {
+      id,
+      engineId,
+      templateId: metadata?.templateId,
+      workspaceDir: dir,
+      currentRunId: null,
+      opencodeSessionId: metadata?.opencodeSessionId,
+      leafId: metadata?.leafId,
+      seq: 0,
+      ackedSeq: 0,
+      sockets: new Set(),
+      createdAt: new Date(),
+    }
+    sessions.set(id, session)
+    return session
+  } catch (e) {
+    return undefined
+  }
 }
 
 export function getSession(id: string): Session | undefined {
@@ -228,7 +263,7 @@ export function ackSeq(session: Session, seq: number): void {
   session.ackedSeq = Math.max(session.ackedSeq, seq)
 }
 
-export async function getSnapshot(session: Session): Promise<Record<string, string>> {
+export async function getSnapshot(session: Session): Promise<Record<string, string | { content: string, encoding: "utf-8" | "base64" }>> {
   using timer = Perf.time("file", "get-snapshot")
   return readWorkspaceFiles(session.id)
 }
