@@ -4,6 +4,9 @@
 FROM oven/bun:1 AS base
 WORKDIR /app
 
+# Install git for dependency installation (needed for git submodule update in postinstall)
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
 # Copy the entire monorepo
 # This is the simplest way to support workspaces without complex filtering
 COPY . .
