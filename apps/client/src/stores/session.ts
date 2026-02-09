@@ -121,7 +121,7 @@ export const useSessionStore = create<SessionState>()(
 
       createSession: (templateId: string) => {
         const { connect } = get()
-        connect(useSessionStore.getState().serverUrl || "ws://127.0.0.1:3001")
+        connect(useSessionStore.getState().serverUrl || import.meta.env.VITE_SERVER_URL || "ws://127.0.0.1:3001")
 
         const checkConnection = setInterval(() => {
           const { ws } = get()
@@ -134,7 +134,7 @@ export const useSessionStore = create<SessionState>()(
 
       resumeSession: (sessionId: string) => {
         const { connect } = get()
-        connect(useSessionStore.getState().serverUrl || "ws://127.0.0.1:3001")
+        connect(useSessionStore.getState().serverUrl || import.meta.env.VITE_SERVER_URL || "ws://127.0.0.1:3001")
 
         const checkConnection = setInterval(() => {
           const { ws } = get()
