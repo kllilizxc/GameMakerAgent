@@ -5,6 +5,7 @@ import { fetchTemplates } from "@/lib/api"
 import { storage, type SessionHistoryItem } from "@/lib/storage"
 import { devtools } from "zustand/middleware"
 import { MSG_PAGE_SIZE_DEFAULT } from "@game-agent/common"
+import { SERVER_URL } from "@/lib/constants"
 
 interface SessionState {
   sessionId: string | null
@@ -121,7 +122,7 @@ export const useSessionStore = create<SessionState>()(
 
       createSession: (templateId: string) => {
         const { connect } = get()
-        connect(useSessionStore.getState().serverUrl || import.meta.env.VITE_SERVER_URL || "ws://127.0.0.1:3001")
+        connect(useSessionStore.getState().serverUrl || SERVER_URL)
 
         const checkConnection = setInterval(() => {
           const { ws } = get()
@@ -134,7 +135,7 @@ export const useSessionStore = create<SessionState>()(
 
       resumeSession: (sessionId: string) => {
         const { connect } = get()
-        connect(useSessionStore.getState().serverUrl || import.meta.env.VITE_SERVER_URL || "ws://127.0.0.1:3001")
+        connect(useSessionStore.getState().serverUrl || SERVER_URL)
 
         const checkConnection = setInterval(() => {
           const { ws } = get()
