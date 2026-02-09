@@ -17,3 +17,14 @@ services:
     buildCommand: cp package.client.json package.json && bun install && bun run build
     staticPublishPath: apps/client/dist
     autoDeploy: true
+    routes:
+      - type: rewrite
+        source: /(.*)
+        destination: /index.html
+    headers:
+      - path: /*
+        name: Cross-Origin-Embedder-Policy
+        value: require-corp
+      - path: /*
+        name: Cross-Origin-Opener-Policy
+        value: same-origin
