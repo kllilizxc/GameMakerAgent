@@ -18,7 +18,7 @@
     "build:client": "bun run --cwd apps/client build",
     "dev": "bun run dev:server & bun run dev:client",
     "typecheck": "bun x tsc -p tsconfig.json --noEmit",
-    "postinstall": "git submodule update --init --recursive"
+    "postinstall": "if [ -d .git ]; then git submodule update --init --recursive; else echo \"Skipping git submodule update (no .git directory)\"; fi"
   },
   "devDependencies": {
     "@types/bun": "^1.3.5",
