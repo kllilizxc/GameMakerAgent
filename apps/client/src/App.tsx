@@ -3,10 +3,25 @@ import { AppShell } from "@/components/layout/AppShell"
 import { TemplateSelector } from "@/components/layout/TemplateSelector"
 import { useSessionStore } from "@/stores/session"
 import { useThemeStore } from "@/stores/theme"
+import { Routes, Route, Navigate, useParams } from "react-router-dom"
+
+function SessionLayout() {
+  const { sessionId } = useParams<{ sessionId: string }>()
+  const currentSessionId = useSessionStore((s) => s.sessionId)
+  const resumeSession = useSessionStore((s) => s.resumeSession)
+
+  // Sync route ID with session store
+  useEffect(() => {
+    if (sessionId && sessionId !== currentSessionId) {
+      resumeSession(sessionId)
+    }
+  }, [sessionId, currentSessionId, resumeSession])
+
+  return <AppShell />
+}
 
 export function App() {
   const fetchTemplates = useSessionStore((s) => s.fetchTemplates)
-  const sessionId = useSessionStore((s) => s.sessionId)
   const loadTheme = useThemeStore((s) => s.loadTheme)
 
   // Load theme on mount
@@ -19,9 +34,11 @@ export function App() {
     fetchTemplates()
   }, [fetchTemplates])
 
-  if (!sessionId) {
-    return <TemplateSelector />
-  }
-
-  return <AppShell />
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/templates" replace />} />
+      <Route path="/templates" element={<TemplateSelector />} />
+      <Route path="/session/:sessionId" element={<SessionLayout />} />
+    </Routes>
+  )
 }

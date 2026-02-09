@@ -3,16 +3,17 @@ import { useSessionStore } from "@/stores/session"
 import { storage } from "@/lib/storage"
 import { Trash2, ArrowRight } from "lucide-react"
 import { useConfirm } from "@/hooks/useConfirm"
+import { useNavigate } from "react-router-dom"
 
 export function TemplateSelector() {
     const templates = useSessionStore((s) => s.templates)
     const createSession = useSessionStore((s) => s.createSession)
-    const resumeSession = useSessionStore((s) => s.resumeSession)
     const history = useSessionStore((s) => s.history)
     const loadHistory = useSessionStore((s) => s.loadHistory)
     const deleteSession = useSessionStore((s) => s.deleteSession)
 
     const { confirm } = useConfirm()
+    const navigate = useNavigate()
 
     useEffect(() => {
         loadHistory()
@@ -98,7 +99,7 @@ export function TemplateSelector() {
                                     </div>
                                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
-                                            onClick={() => resumeSession(session.id)}
+                                            onClick={() => navigate(`/session/${session.id}`)}
                                             className="px-3 py-1.5 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md transition-colors"
                                         >
                                             Resume

@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useSessionStore } from "@/stores/session"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
 import { ChevronLeft } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
 interface PromptHeaderProps {
   title?: string
@@ -12,6 +13,7 @@ export function PromptHeader({
   title = "Game Agent",
   subtitle = "Describe your game idea"
 }: PromptHeaderProps) {
+  const navigate = useNavigate()
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState("")
 
@@ -47,7 +49,10 @@ export function PromptHeader({
     <>
       <div className="p-4 border-b border-border flex items-center gap-4">
         <button
-          onClick={() => leaveSession()}
+          onClick={() => {
+            leaveSession()
+            navigate("/templates")
+          }}
           className="p-2 -ml-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
           title="Back to Templates"
         >
