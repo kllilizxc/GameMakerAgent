@@ -3,7 +3,7 @@
 An AI-powered game development assistant that helps you create web games through natural language conversation. Describe your game idea, and the agent will generate, iterate, and refine the code in real-time.
 
 ## 🎬 Demo
-Demo: https://gamemakeragent-fe.onrender.com/
+Demo: https://gamemakeragent-client.onrender.com/
 
 ![Template Screenshot](docs/images/template.png)
 
