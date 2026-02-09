@@ -153,12 +153,12 @@ export function getSession(id: string): Session | undefined {
 
 export async function destroySession(id: string): Promise<void> {
   const session = sessions.get(id)
-  if (!session) return
-
-  session.sockets.clear()
+  if (session) {
+    session.sockets.clear()
+    sessions.delete(id)
+  }
 
   await deleteWorkspace(id)
-  sessions.delete(id)
 }
 
 export function startRun(session: Session): string {

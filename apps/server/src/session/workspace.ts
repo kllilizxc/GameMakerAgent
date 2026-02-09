@@ -105,6 +105,7 @@ const METADATA_FILE = ".agent/metadata.json"
 export interface SessionMetadata {
   opencodeSessionId?: string
   templateId?: string
+  leafId?: string
   version: number
 }
 

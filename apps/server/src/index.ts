@@ -23,6 +23,11 @@ const app = new Elysia()
   })
   .get("/perf", () => Perf.getSummary())
   .post("/perf/reset", () => { Perf.reset(); return { ok: true } })
+  .delete("/sessions/:id", async ({ params: { id } }) => {
+    const manager = await import("./session/manager")
+    await manager.destroySession(id)
+    return { success: true }
+  })
   .ws("/ws", wsHandler)
   .listen({ port: PORT, hostname: HOST })
 

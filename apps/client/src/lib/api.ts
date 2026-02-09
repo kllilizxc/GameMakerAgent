@@ -30,12 +30,13 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
             throw new ApiError(res.status, `API request failed: ${res.statusText}`)
         }
 
-        // Handle 204 No Content
-        if (res.status === 204) {
+        // Handle 204 No Content or empty Content-Length
+        if (res.status === 204 || res.headers.get("Content-Length") === "0") {
             return {} as T
         }
 
-        return await res.json()
+        const text = await res.text()
+        return text ? JSON.parse(text) : {} as T
     } catch (error) {
         if (retries > 0) {
             console.warn(`Request to ${url} failed, retrying... (${retries} attempts left)`)
@@ -67,9 +68,21 @@ export function post<T>(endpoint: string, body: unknown, options?: RequestOption
         body: JSON.stringify(body),
     })
 }
+// ... existing exports ...
+
+/**
+ * DELETE request helper
+ */
+export function del<T>(endpoint: string, options?: RequestOptions): Promise<T> {
+    return request<T>(endpoint, { ...options, method: "DELETE" })
+}
 
 // --- API Methods ---
 
 export function fetchTemplates(): Promise<TemplateInfo[]> {
     return get<{ templates: TemplateInfo[] }>("/templates").then((data) => data.templates)
+}
+
+export function deleteSession(sessionId: string): Promise<void> {
+    return del<void>(`/sessions/${sessionId}`)
 }

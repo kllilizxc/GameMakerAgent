@@ -1,7 +1,8 @@
 import { create } from "zustand"
 import { useFilesStore } from "./files"
 import type { Message, Activity, FsPatch, TemplateInfo } from "@/types/session"
-import { fetchTemplates } from "@/lib/api"
+import { fetchTemplates, deleteSession } from "@/lib/api"
+
 import { storage, type SessionHistoryItem } from "@/lib/storage"
 import { devtools } from "zustand/middleware"
 import { MSG_PAGE_SIZE_DEFAULT } from "@game-agent/common"
@@ -35,7 +36,9 @@ interface SessionState {
   addToHistory: (sessionId: string, templateId?: string) => void
   updateSessionName: (sessionId: string, name: string) => void
   loadHistory: () => void
+  deleteSession: (sessionId: string) => Promise<void>
   leaveSession: () => void
+
   sendPrompt: (prompt: string) => void
   addMessage: (message: Message) => void
   updateStreamingMessage: (textId: string, text: string) => void
@@ -199,6 +202,19 @@ export const useSessionStore = create<SessionState>()(
           storage.saveHistory(newHistory)
           return { history: newHistory }
         })
+      },
+
+      deleteSession: async (sessionId: string) => {
+        try {
+          await deleteSession(sessionId)
+          set((state) => {
+            const newHistory = state.history.filter((h) => h.id !== sessionId)
+            storage.saveHistory(newHistory)
+            return { history: newHistory }
+          })
+        } catch (e) {
+          console.error("Failed to delete session:", e)
+        }
       },
 
       leaveSession: () => {
