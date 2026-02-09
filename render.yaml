@@ -22,5 +22,5 @@ services:
       - key: PORT
         value: "3000"
       - key: VITE_SERVER_URL
-        value: "wss://game-agent-server.onrender.com" # UPDATE THIS with your actual backend URL
+        value: "wss://gamemakeragent-1.onrender.com" # UPDATE THIS with your actual backend URL
     autoDeploy: true
