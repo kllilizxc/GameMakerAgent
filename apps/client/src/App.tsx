@@ -22,12 +22,14 @@ function SessionLayout() {
 
 export function App() {
   const fetchTemplates = useSessionStore((s) => s.fetchTemplates)
+  const loadHistory = useSessionStore((s) => s.loadHistory)
   const loadTheme = useThemeStore((s) => s.loadTheme)
 
-  // Load theme on mount
+  // Load theme and history on mount
   useEffect(() => {
     loadTheme()
-  }, [loadTheme])
+    loadHistory()
+  }, [loadTheme, loadHistory])
 
   // Fetch templates on mount
   useEffect(() => {
