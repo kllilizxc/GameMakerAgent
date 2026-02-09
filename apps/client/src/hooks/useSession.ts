@@ -2,8 +2,7 @@ import { useEffect, useCallback } from "react"
 import { useSessionStore } from "@/stores/session"
 import { useFilesStore } from "@/stores/files"
 import { useWebContainer } from "./useWebContainer"
-
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:3001"
+import { SERVER_URL } from "@/lib/constants"
 
 export function useSession() {
   const session = useSessionStore()

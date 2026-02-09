@@ -1,6 +1,7 @@
 import { TemplateInfo } from "@/types/session"
+import { SERVER_URL } from "@/lib/constants"
 
-const WS_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:3001"
+const WS_URL = SERVER_URL
 const API_BASE_URL = WS_URL.replace(/^ws/, "http")
 
 interface RequestOptions extends RequestInit {
