@@ -8,6 +8,7 @@ import { json } from "@codemirror/lang-json"
 import { oneDark } from "@codemirror/theme-one-dark"
 import { useFilesStore } from "@/stores/files"
 import { FileTree } from "./FileTree"
+import { isImageFile } from "@/lib/utils"
 
 function getLanguageExtension(filename: string) {
   const ext = filename.split(".").pop()?.toLowerCase()
@@ -28,13 +29,17 @@ function getLanguageExtension(filename: string) {
   }
 }
 
+import { ImagePreview } from "./ImagePreview"
+
 export function CodeEditor() {
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const { selectedFile, getFileContent, files } = useFilesStore()
 
+  const isImage = selectedFile ? isImageFile(selectedFile) : false
+
   useEffect(() => {
-    if (!editorRef.current) return
+    if (!editorRef.current || isImage) return
 
     const content = selectedFile ? getFileContent(selectedFile) || "" : ""
     const langExt = selectedFile ? getLanguageExtension(selectedFile) : []
@@ -66,7 +71,7 @@ export function CodeEditor() {
       viewRef.current?.destroy()
       viewRef.current = null
     }
-  }, [selectedFile, files])
+  }, [selectedFile, files, isImage])
 
   if (files.size === 0) {
     return (
@@ -83,8 +88,14 @@ export function CodeEditor() {
         <FileTree />
       </div>
 
-      {/* Editor */}
-      <div ref={editorRef} className="flex-1 overflow-hidden" />
+      {/* Editor or Preview */}
+      <div className="flex-1 overflow-hidden relative">
+        {isImage ? (
+          <ImagePreview />
+        ) : (
+          <div ref={editorRef} className="h-full w-full overflow-hidden" />
+        )}
+      </div>
     </div>
   )
 }

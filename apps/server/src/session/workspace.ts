@@ -3,6 +3,7 @@ import { join, relative } from "node:path"
 import type { FileMap } from "../engine/adapter"
 import type { FsPatchOp } from "../protocol/messages"
 import { Perf } from "@game-agent/perf"
+import { isImageFile, FILE_SIZE_LIMIT_BINARY, FILE_SIZE_LIMIT_TEXT } from "@game-agent/common"
 
 const WORKSPACES_DIR = join(process.cwd(), "workspaces")
 
@@ -62,10 +63,10 @@ export async function readWorkspaceFiles(sessionId: string): Promise<Record<stri
         const info = await stat(full)
 
         // Check for binary extensions
-        const isBinary = /\.(png|jpg|jpeg|gif|webp|ico|bmp)$/i.test(rel)
+        const isBinary = isImageFile(rel)
 
-        // Limit size: 1MB for binary, 100kb for text
-        const limit = isBinary ? 1024 * 1024 * 5 : 1024 * 100
+        // Limit size
+        const limit = isBinary ? FILE_SIZE_LIMIT_BINARY : FILE_SIZE_LIMIT_TEXT
 
         if (info.size < limit) {
           if (isBinary) {
