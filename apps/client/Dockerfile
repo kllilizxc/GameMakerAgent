@@ -6,6 +6,10 @@ WORKDIR /app
 COPY package.client.json ./package.json
 COPY bun.lock ./
 
+# Copy workspace package.json files for dependency resolution
+COPY apps/client/package.json ./apps/client/package.json
+COPY packages/common/package.json ./packages/common/package.json
+
 # Install dependencies (only client + common)
 RUN bun install
 
