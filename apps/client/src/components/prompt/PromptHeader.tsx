@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { useSessionStore } from "@/stores/session"
-import { useConfirm } from "@/hooks/useConfirm"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
 import { ChevronLeft } from "lucide-react"
 
@@ -13,7 +12,6 @@ export function PromptHeader({
   title = "Game Agent",
   subtitle = "Describe your game idea"
 }: PromptHeaderProps) {
-  const { confirm } = useConfirm()
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState("")
 
@@ -49,16 +47,7 @@ export function PromptHeader({
     <>
       <div className="p-4 border-b border-border flex items-center gap-4">
         <button
-          onClick={async () => {
-            if (await confirm({
-              title: "Return to Templates?",
-              description: "Any unsaved progress will be lost. This will disconnect your current session.",
-              confirmText: "Leave Session",
-              variant: "destructive"
-            })) {
-              leaveSession()
-            }
-          }}
+          onClick={() => leaveSession()}
           className="p-2 -ml-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
           title="Back to Templates"
         >
