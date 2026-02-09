@@ -1,16 +1,16 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { App } from "./App"
-import { ConfirmProvider } from "@/hooks/useConfirm"
+import { DialogProvider } from "@/components/ui/DialogProvider"
 import { BrowserRouter } from "react-router-dom"
 import "./index.css"
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <ConfirmProvider>
+      <DialogProvider>
         <App />
-      </ConfirmProvider>
+      </DialogProvider>
     </BrowserRouter>
   </StrictMode>
 )

@@ -22,6 +22,7 @@ export const RunStartMessage = z.object({
   engineId: EngineId.default("phaser-2d"),
   templateId: z.string().optional(),
   options: z.record(z.unknown()).optional(),
+  attachments: z.array(z.string()).optional(),
 })
 export type RunStartMessage = z.infer<typeof RunStartMessage>
 

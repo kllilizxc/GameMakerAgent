@@ -39,7 +39,7 @@ interface SessionState {
   deleteSession: (sessionId: string) => Promise<void>
   leaveSession: () => void
 
-  sendPrompt: (prompt: string) => void
+  sendPrompt: (prompt: string, attachments?: string[]) => void
   addMessage: (message: Message) => void
   updateStreamingMessage: (textId: string, text: string) => void
   finalizeStreamingMessage: () => void
@@ -224,7 +224,7 @@ export const useSessionStore = create<SessionState>()(
         set({ messages: [], activities: [], streamingMessageId: null, sequence: 0 })
       },
 
-      sendPrompt: (prompt: string) => {
+      sendPrompt: (prompt: string, attachments?: string[]) => {
         const state = get()
         const { ws, sessionId, engineId, status } = state
 
@@ -251,6 +251,7 @@ export const useSessionStore = create<SessionState>()(
           sessionId,
           engineId,
           prompt,
+          attachments,
         }
         ws.send(JSON.stringify(message))
       },

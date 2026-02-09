@@ -148,7 +148,7 @@ async function handleMessage(ws: WsContext, message: string): Promise<void> {
         engineId: session.engineId,
       })
 
-      executeRun(session, runId, msg.prompt)
+      executeRun(session, runId, msg.prompt, msg.attachments)
       break
     }
 
