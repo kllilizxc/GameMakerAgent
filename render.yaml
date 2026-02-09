@@ -14,10 +14,8 @@ services:
   # Frontend Web Service (to serve headers)
   - type: web
     name: game-agent-client
-    runtime: image
-    image: oven/bun:1
-    buildCommand: cp package.client.json package.json && bun install && bun run build
-    startCommand: bun run apps/client/server.ts
+    runtime: docker
+    dockerfilePath: apps/client/Dockerfile
     poolDependencies:
       - game-agent-server
     envVars:
