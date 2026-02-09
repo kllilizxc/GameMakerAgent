@@ -1,6 +1,15 @@
 import { TemplateInfo } from "@/types/session"
 
-const WS_URL = import.meta.env.VITE_SERVER_URL || "ws://localhost:3001"
+// Add global type definition for runtime env
+declare global {
+    interface Window {
+        __ENV__?: {
+            VITE_SERVER_URL?: string
+        }
+    }
+}
+
+const WS_URL = window.__ENV__?.VITE_SERVER_URL || import.meta.env.VITE_SERVER_URL || "ws://localhost:3001"
 const API_BASE_URL = WS_URL.replace(/^ws/, "http")
 
 interface RequestOptions extends RequestInit {
