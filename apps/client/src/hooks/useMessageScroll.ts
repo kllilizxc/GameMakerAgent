@@ -11,8 +11,8 @@ interface UseMessageScrollOptions {
 }
 
 interface UseMessageScrollReturn {
-    scrollContainerRef: React.RefObject<HTMLDivElement | null>
-    contentRef: React.RefObject<HTMLDivElement | null>
+    scrollContainerRef: React.RefObject<HTMLDivElement>
+    contentRef: React.RefObject<HTMLDivElement>
     scrollToBottom: (behavior?: ScrollBehavior) => void
     isAtBottom: boolean
 }

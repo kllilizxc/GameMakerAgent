@@ -21,7 +21,7 @@ export function useWebContainer() {
   const [isReady, setIsReady] = useState(false)
   const serverProcessRef = useRef<{ kill: () => void } | null>(null)
   const installProcessRef = useRef<{ kill: () => void } | null>(null)
-  const { files, applyPatch } = useFilesStore()
+  const { files: _files, applyPatch } = useFilesStore()
   const { setUrl, setStatus, setError, addLog } = usePreviewStore()
 
   const boot = useCallback(async () => {
@@ -50,7 +50,7 @@ export function useWebContainer() {
 
       for (const [path, content] of Object.entries(fileMap)) {
         const parts = path.split("/")
-        const fileName = parts.pop()!
+        parts.pop() // Remove filename, keep directory parts
         const dir = parts.join("/")
 
         if (dir) {
@@ -119,7 +119,7 @@ export function useWebContainer() {
     )
 
     // Wait for server-ready event
-    wc.on("server-ready", (port, url) => {
+    wc.on("server-ready", (_port, url) => {
       addLog("log", `Dev server ready at ${url}`)
       setUrl(url)
       setStatus("running")

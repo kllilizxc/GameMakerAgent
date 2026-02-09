@@ -11,7 +11,6 @@ export function TodoList({ todos }: TodoListProps) {
     if (!todos || todos.length === 0) return null
 
     const pending = todos.filter(t => t.status !== "completed")
-    const completed = todos.filter(t => t.status === "completed")
 
     return (
         <div className="my-2 rounded-md border border-border bg-card text-sm overflow-hidden shadow-sm">
