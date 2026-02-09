@@ -11,20 +11,16 @@ services:
     autoDeploy: true
 
   # Frontend Static Site
+  # Frontend Web Service (to serve headers)
   - type: web
     name: game-agent-client
-    runtime: static
+    runtime: image
+    image: oven/bun:1
     buildCommand: cp package.client.json package.json && bun install && bun run build
-    staticPublishPath: apps/client/dist
+    startCommand: bun run apps/client/server.ts
+    poolDependencies:
+      - game-agent-server
+    envVars:
+      - key: PORT
+        value: "3000"
     autoDeploy: true
-    routes:
-      - type: rewrite
-        source: /(.*)
-        destination: /index.html
-    headers:
-      - path: /*
-        name: Cross-Origin-Embedder-Policy
-        value: require-corp
-      - path: /*
-        name: Cross-Origin-Opener-Policy
-        value: same-origin
