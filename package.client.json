@@ -1,0 +1,12 @@
+{
+    "name": "game-agent-client-build",
+    "private": true,
+    "type": "module",
+    "workspaces": [
+        "apps/client",
+        "packages/common"
+    ],
+    "scripts": {
+        "build": "bun run --cwd apps/client build"
+    }
+}

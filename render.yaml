@@ -14,6 +14,6 @@ services:
   - type: web
     name: game-agent-client
     runtime: static
-    buildCommand: bun install --ignore-scripts && bun run --cwd apps/client build
+    buildCommand: cp package.client.json package.json && bun install && bun run build
     staticPublishPath: apps/client/dist
     autoDeploy: true
