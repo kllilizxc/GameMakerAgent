@@ -51,3 +51,6 @@ workspaces/
 .agent/
 .agents/
 .claude/
+
+dist/
+apps/client/dist/
