@@ -23,30 +23,7 @@ serve({
             file = Bun.file(join(STATIC_DIR, "index.html"));
         }
 
-        // Standard static file serving
-        if (!path.endsWith("index.html") && await file.exists()) {
-            const response = new Response(file);
-            response.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
-            response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
-            return response;
-        }
-
-        // Special handling for index.html (Runtime Env Injection)
-        const text = await file.text();
-        const envScript = `<script>window.__ENV__ = { VITE_SERVER_URL: "${process.env.VITE_SERVER_URL || ''}" }</script>`;
-        // Inject before </head> or just append to body if HEAD not found, but we should use a marker
-        // Let's assume we can replace a marker or just inject before </head>
-        const injectedText = text.replace("</head>", `${envScript}</head>`);
-
-        const response = new Response(injectedText, {
-            headers: {
-                "Content-Type": "text/html",
-                "Cross-Origin-Embedder-Policy": "require-corp",
-                "Cross-Origin-Opener-Policy": "same-origin"
-            }
-        });
-
-        return response;
+        const response = new Response(file);
 
         // Add Cross-Origin Isolation headers for WebContainers
         response.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
