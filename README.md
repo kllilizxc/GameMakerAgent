@@ -70,7 +70,7 @@ An AI-powered game development assistant that helps you create web games through
 ```bash
 # Clone the repository (with submodules for templates)
 git clone --recursive https://github.com/kllilizxc/GameMakerAgent.git
-cd game-agent
+cd GameMakerAgent
 
 # Install dependencies (will also fetch submodules if missed)
 bun install
