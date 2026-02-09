@@ -13,7 +13,7 @@ export function ActivityGroup({ activities }: ActivityGroupProps) {
         if (containerRef.current) {
             containerRef.current.scrollTop = containerRef.current.scrollHeight
         }
-    }, [])
+    }, [activities.length])
 
     return (
         <div

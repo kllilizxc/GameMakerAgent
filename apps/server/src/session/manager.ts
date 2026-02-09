@@ -48,6 +48,35 @@ export function initSessionManager() {
         }
       }
     }
+
+    // Filter for Session Error events
+    if (e.payload.type === OcSession.Event.Error.type) {
+      const { sessionID, error } = e.payload.properties
+
+      if (sessionID) {
+        // Find session by opencodeSessionId
+        for (const session of sessions.values()) {
+          if (session.opencodeSessionId === sessionID) {
+            console.log(`[session] Broadcasting error for session ${session.id}:`, error)
+
+            let errorMessage = "Unknown error"
+            if (error) {
+              if ('message' in error) {
+                errorMessage = error.message
+              } else if ('data' in error && error.data && typeof error.data === 'object' && 'message' in error.data) {
+                errorMessage = (error.data as any).message
+              }
+            }
+
+            broadcast(session, {
+              type: "run/error",
+              message: errorMessage
+            } as any)
+            break
+          }
+        }
+      }
+    }
   })
 }
 
