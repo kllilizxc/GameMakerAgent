@@ -4,8 +4,7 @@ services:
     name: game-agent-server
     runtime: docker
     plan: free
-    dockerContext: .
-    dockerfilePath: apps/server/Dockerfile
+    dockerfilePath: ./apps/server/Dockerfile
     envVars:
       - key: PORT
         sync: false
