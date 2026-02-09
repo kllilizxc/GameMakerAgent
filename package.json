@@ -8,7 +8,8 @@
     "apps/*",
     "packages/agent",
     "packages/perf",
-    "packages/common"
+    "packages/common",
+    "packages/opencode/packages/*"
   ],
   "scripts": {
     "test:agent": "bun run --conditions=browser --cwd packages/opencode/packages/opencode ../../../../packages/agent/src/test.ts",
