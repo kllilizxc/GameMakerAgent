@@ -14,6 +14,8 @@ COPY packages/common ./packages/common
 COPY apps/client ./apps/client
 
 # Build
+ARG VITE_SERVER_URL
+ENV VITE_SERVER_URL=$VITE_SERVER_URL
 RUN bun run --cwd apps/client build
 
 # Serve stage
