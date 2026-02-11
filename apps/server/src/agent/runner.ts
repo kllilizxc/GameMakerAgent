@@ -21,7 +21,8 @@ export async function executeRun(
   session: Session,
   runId: string,
   prompt: string,
-  attachments?: string[]
+  attachments?: string[],
+  model?: string
 ): Promise<void> {
   const ctx: RunContext = { session, runId, aborted: false }
   activeRuns.set(runId, ctx)
@@ -102,7 +103,7 @@ export async function executeRun(
 
 
     // Pass opencode session ID if we have one from a previous run
-    const { result } = await run(workspaceDir, { prompt, attachments, system: systemPrompt, sessionId: session.opencodeSessionId }, (event) => {
+    const { result } = await run(workspaceDir, { prompt, attachments, system: systemPrompt, sessionId: session.opencodeSessionId, model }, (event) => {
       if (ctx.aborted) return
 
       console.log(`[runner] ${Date.now()} received event: ${event.type}`)

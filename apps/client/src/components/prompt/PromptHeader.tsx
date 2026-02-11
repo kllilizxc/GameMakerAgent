@@ -1,8 +1,9 @@
 import { useState } from "react"
 import { useSessionStore } from "@/stores/session"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
-import { ChevronLeft } from "lucide-react"
+import { ChevronLeft, Settings } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { ModelSettings } from "@/components/settings/ModelSettings"
 
 interface PromptHeaderProps {
   title?: string
@@ -11,11 +12,12 @@ interface PromptHeaderProps {
 
 export function PromptHeader({
   title = "Game Agent",
-  subtitle = "Describe your game idea"
+  subtitle = ""
 }: PromptHeaderProps) {
   const navigate = useNavigate()
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState("")
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   const sessionId = useSessionStore((s) => s.sessionId)
   const history = useSessionStore((s) => s.history)
@@ -78,10 +80,18 @@ export function PromptHeader({
               {displayName}
             </h1>
           )}
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
+          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
         </div>
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+          title="Model Settings"
+        >
+          <Settings size={20} />
+        </button>
         <ThemeToggle />
       </div>
+      <ModelSettings open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
 
     </>
   )

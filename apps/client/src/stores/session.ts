@@ -7,6 +7,7 @@ import { storage, type SessionHistoryItem } from "@/lib/storage"
 import { devtools } from "zustand/middleware"
 import { MSG_PAGE_SIZE_DEFAULT } from "@game-agent/common"
 import { SERVER_URL } from "@/lib/constants"
+import { useSettingsStore } from "./settings"
 
 interface SessionState {
   sessionId: string | null
@@ -26,6 +27,8 @@ interface SessionState {
   hasMoreMessages: boolean
   todos: Array<{ id: string; content: string; status: string; priority?: string }>
   draftPrompt: string | null
+  reconnectTimer: ReturnType<typeof setTimeout> | null
+
 
   connect: (serverUrl: string, engineId?: string) => void
   loadMoreMessages: () => void
@@ -72,16 +75,19 @@ export const useSessionStore = create<SessionState>()(
       hasMoreMessages: false,
       todos: [],
       draftPrompt: null,
+      reconnectTimer: null,
 
       connect: (serverUrl: string, engineId = "phaser-2d") => {
-        const { ws } = get()
+        const { ws, reconnectTimer } = get()
         if (ws) ws.close()
+        if (reconnectTimer) clearTimeout(reconnectTimer)
 
-        set({ status: "connecting", engineId, error: null, serverUrl })
+        set({ status: "connecting", engineId, error: null, serverUrl, reconnectTimer: null })
 
         const socket = new WebSocket(`${serverUrl}/ws`)
 
         socket.onopen = () => {
+          console.log("[ws] Connected")
           set({ ws: socket, status: "idle" })
         }
 
@@ -102,15 +108,33 @@ export const useSessionStore = create<SessionState>()(
         }
 
         socket.onclose = () => {
-          set({ ws: null, status: "idle" })
+          const { ws } = get()
+          if (ws) {
+            // Connection closed unexpectedly (not by disconnect())
+            // Remove the dead socket reference but keep the error status
+            // Schedule reconnection
+            console.log("[ws] Connection lost, reconnecting in 10s...")
+            set({ ws: null, status: "error", error: "Connection lost. Reconnecting..." })
+
+            const timer = setTimeout(() => {
+              get().connect(serverUrl, engineId)
+            }, 10000)
+
+            set({ reconnectTimer: timer })
+          } else {
+            // Expected close (e.g. via disconnect())
+            set({ ws: null, status: "idle" })
+          }
         }
       },
 
       disconnect: () => {
-        const { ws } = get()
+        const { ws, reconnectTimer } = get()
+        if (reconnectTimer) clearTimeout(reconnectTimer)
+
         if (ws) {
           ws.close()
-          set({ ws: null, sessionId: null, status: "idle" })
+          set({ ws: null, sessionId: null, status: "idle", reconnectTimer: null })
         }
       },
 
@@ -252,6 +276,7 @@ export const useSessionStore = create<SessionState>()(
           engineId,
           prompt,
           attachments,
+          model: useSettingsStore.getState().activeModel,
         }
         ws.send(JSON.stringify(message))
       },

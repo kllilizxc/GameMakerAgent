@@ -1,8 +1,7 @@
 import { TemplateInfo } from "@/types/session"
-import { SERVER_URL } from "@/lib/constants"
+import { HTTP_SERVER_URL } from "@/lib/constants"
 
-const WS_URL = SERVER_URL
-const API_BASE_URL = WS_URL.replace(/^ws/, "http")
+const API_BASE_URL = HTTP_SERVER_URL
 
 interface RequestOptions extends RequestInit {
     retries?: number

@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { PromptPanel } from "./PromptPanel"
 import { WorkspaceArea } from "./WorkspaceArea"
-import { LoadingOverlay } from "./LoadingOverlay"
 import { useWebContainer } from "@/hooks/useWebContainer"
 import { useFilesStore } from "@/stores/files"
 import { usePreviewStore } from "@/stores/preview"
@@ -128,7 +127,7 @@ export function AppShell() {
       )}
     >
       {/* Loading overlay */}
-      <LoadingOverlay />
+      {/* <LoadingOverlay /> */}
 
       {/* Desktop: Left panel | Mobile: rendered at bottom */}
       {!isMobile && (

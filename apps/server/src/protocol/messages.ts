@@ -23,6 +23,7 @@ export const RunStartMessage = z.object({
   templateId: z.string().optional(),
   options: z.record(z.unknown()).optional(),
   attachments: z.array(z.string()).optional(),
+  model: z.string().nullish(),
 })
 export type RunStartMessage = z.infer<typeof RunStartMessage>
 

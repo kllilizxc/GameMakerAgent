@@ -43,7 +43,7 @@ export function ThemeToggle() {
                                     <span
                                         className="w-3 h-3 rounded-full"
                                         style={{
-                                            backgroundColor: `hsl(${theme.variables["--primary"]})`,
+                                            backgroundColor: `hsl(${theme.variables["--theme-primary"]})`,
                                         }}
                                     />
                                     {theme.name}

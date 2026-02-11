@@ -1,4 +1,11 @@
+// import "./setup"
+import { initConfig } from "./config"
+
+// Initialize programmatic configuration
+initConfig()
+
 import { Elysia, t } from "elysia"
+
 import { cors } from "@elysiajs/cors"
 import { ensureWorkspacesDir } from "./session/workspace"
 import { listEngines, getEngine } from "./engine/registry"
@@ -29,6 +36,37 @@ const app = new Elysia()
     return { success: true }
   })
   .ws("/ws", wsHandler)
+  .post("/api/config/provider", async ({ body }) => {
+    const { getConfig, saveConfig } = await import("./config")
+    const config = getConfig()
+    if (!config.provider) config.provider = {}
+
+    // Merge or overwrite provider config
+    config.provider[body.providerId] = body.config
+    saveConfig(config)
+    return { success: true }
+  }, {
+    body: t.Object({
+      providerId: t.String(),
+      config: t.Any()
+    })
+  })
+  .get("/api/config/models", async () => {
+    const { getModels, getActiveModel } = await import("./config")
+    return {
+      models: getModels(),
+      activeModel: getActiveModel()
+    }
+  })
+  .post("/api/config/model", async ({ body }) => {
+    const { setActiveModel } = await import("./config")
+    setActiveModel(body.modelId)
+    return { success: true }
+  }, {
+    body: t.Object({
+      modelId: t.Optional(t.String())
+    })
+  })
   .post("/api/generate-image", async ({ body }: { body: { prompt: string, size?: string, model?: string } }) => {
     const { OpenAI } = await import("openai")
     const client = new OpenAI({
