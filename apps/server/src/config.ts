@@ -13,7 +13,7 @@ export interface ProviderConfig {
     options?: Record<string, any>
     api?: string
     env?: string[]
-    models: Record<string, { id: string, name?: string, capabilities?: any }>
+    models: Record<string, { id: string, name?: string, modalities?: any }>
 }
 
 export interface OpencodeConfig {
@@ -37,18 +37,14 @@ const DEFAULT_CONFIG: OpencodeConfig = {
             "models": {
                 "gemini-3-flash": {
                     "id": "gemini-3-flash",
-                    "capabilities": {
-                        "input": {
-                            "image": true
-                        }
+                    "modalities": {
+                        "input": ["image"]
                     }
                 },
                 "gemini-3-pro": {
                     "id": "gemini-3-pro",
-                    "capabilities": {
-                        "input": {
-                            "image": true
-                        }
+                    "modalities": {
+                        "input": ["image"]
                     }
                 }
             }
