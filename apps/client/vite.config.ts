@@ -15,6 +15,12 @@ export default defineConfig({
       "Cross-Origin-Opener-Policy": "same-origin",
       "Cross-Origin-Embedder-Policy": "require-corp",
     },
+    proxy: {
+      "/workspaces": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     headers: {

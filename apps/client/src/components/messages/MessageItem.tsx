@@ -5,6 +5,7 @@ import { NodeRenderer } from "markstream-react"
 import { Undo2 } from "lucide-react"
 import { TaskSteps } from "./TaskSteps"
 import { TodoList } from "./TodoList"
+import { renderUIPart } from "../ui-parts/UIRegistry"
 import "./MessageItem.scss"
 
 interface MessageItemProps {
@@ -12,8 +13,6 @@ interface MessageItemProps {
 }
 
 export function MessageItem({ message }: MessageItemProps) {
-  const isAgent = message.role === "agent"
-
   const rewind = useSessionStore((state) => state.rewind)
 
   return (
@@ -33,14 +32,35 @@ export function MessageItem({ message }: MessageItemProps) {
         {message.metadata?.todos && (
           <TodoList todos={message.metadata.todos} />
         )}
-        {isAgent ? (
-          <NodeRenderer
-            content={message.content}
-            final={!message.streaming}
-          />
-        ) : (
-          message.content
-        )}
+        <div className={cn("flex flex-col gap-2", message.role === "user" && "prose prose-sm prose-invert max-w-none")}>
+          {message.parts && message.parts.length > 0 ? (
+            message.parts.map((part, i) => (
+              <div key={i}>
+                {part.type === "text" && part.text && (
+                  <NodeRenderer content={part.text} final={!message.streaming} />
+                )}
+                {part.type === "image" && part.url && (
+                  <img
+                    src={part.url}
+                    alt="attachment"
+                    className="max-w-full rounded-md border border-border shadow-sm my-1"
+                    loading="lazy"
+                  />
+                )}
+                {part.type === "ui" && part.ui && (
+                  renderUIPart(part.ui.name, part.ui.props)
+                )}
+              </div>
+            ))
+          ) : (
+            // Fallback for old messages
+            message.role === "agent" ? (
+              <NodeRenderer content={message.content} final={!message.streaming} />
+            ) : (
+              message.content
+            )
+          )}
+        </div>
       </div>
 
       <div className="absolute top-3 -left-6 opacity-0 group-hover:opacity-100 transition-opacity">

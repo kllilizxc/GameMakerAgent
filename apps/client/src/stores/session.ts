@@ -287,21 +287,43 @@ export const useSessionStore = create<SessionState>()(
 
       updateStreamingMessage: (textId: string, text: string) => {
         set((s) => {
-          // Check if message with this textId already exists
-          const existing = s.messages.find((m) => m.id === textId)
-          if (existing) {
+          const existingIndex = s.messages.findIndex((m) => m.id === textId)
+
+          if (existingIndex !== -1) {
+            const messages = [...s.messages]
+            const msg = { ...messages[existingIndex] }
+            msg.streaming = true
+
+            // Ensure parts exist
+            if (!msg.parts) {
+              msg.parts = [{ type: "text", text }]
+            } else {
+              // Find the last text part and update it
+              const lastTextPartIndex = [...msg.parts].reverse().findIndex(p => p.type === "text")
+              if (lastTextPartIndex !== -1) {
+                const index = msg.parts.length - 1 - lastTextPartIndex
+                msg.parts[index] = { ...msg.parts[index], text }
+              } else {
+                msg.parts.push({ type: "text", text })
+              }
+            }
+
+            // Sync legacy content field
+            msg.content = text
+
+            messages[existingIndex] = msg
             return {
-              messages: s.messages.map((m) =>
-                m.id === textId ? { ...m, content: text, streaming: true } : m
-              ),
+              messages,
               streamingMessageId: textId,
             }
           }
+
           // Create new message
           const newMsg: Message = {
             id: textId,
             role: "agent",
             content: text,
+            parts: [{ type: "text", text }],
             streaming: true,
             timestamp: Date.now(),
           }
@@ -420,6 +442,7 @@ function processLoadedMessages(messages: any[]): Message[] {
     id: pm.id || `restored-${pm.timestamp}-${idx}`,
     role: pm.role,
     content: pm.content,
+    parts: pm.parts,
     streaming: false,
     timestamp: pm.timestamp,
     metadata: pm.metadata,

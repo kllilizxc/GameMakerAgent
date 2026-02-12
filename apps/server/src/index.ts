@@ -1,4 +1,3 @@
-// import "./setup"
 import { initConfig } from "./config"
 
 // Initialize programmatic configuration
@@ -12,6 +11,7 @@ import { listEngines, getEngine } from "./engine/registry"
 import { wsHandler } from "./protocol/handler"
 import { initSessionManager } from "./session/manager"
 import { Perf } from "@game-agent/perf"
+import { staticPlugin } from "@elysiajs/static"
 
 const PORT = Number(process.env.PORT) || 3001
 const HOST = process.env.HOST || "0.0.0.0"
@@ -21,6 +21,10 @@ initSessionManager()
 
 const app = new Elysia()
   .use(cors())
+  .use(staticPlugin({
+    assets: "workspaces",
+    prefix: "/workspaces",
+  }))
   .get("/", () => "Game Agent Server")
   .get("/health", () => ({ status: "ok", engines: listEngines() }))
   .get("/engines", () => ({ engines: listEngines() }))
@@ -67,7 +71,7 @@ const app = new Elysia()
       modelId: t.Optional(t.String())
     })
   })
-  .post("/api/generate-image", async ({ body }: { body: { prompt: string, size?: string, model?: string } }) => {
+  .post("/api/generate-image", async ({ body }) => {
     const { OpenAI } = await import("openai")
     const client = new OpenAI({
       baseURL: process.env.NANOBANANA_BASE_URL || "http://127.0.0.1:8045/v1",
@@ -76,14 +80,19 @@ const app = new Elysia()
 
     const response = await client.chat.completions.create({
       model: body.model || "gemini-3-pro-image",
-      extra_body: { "size": body.size || "1024x1024" },
       messages: [{
         "role": "user",
         "content": body.prompt
       }]
-    })
+    } as any)
 
     return { content: response.choices[0].message.content }
+  }, {
+    body: t.Object({
+      prompt: t.String(),
+      size: t.Optional(t.String()),
+      model: t.Optional(t.String())
+    })
   })
   .post("/api/save-image", async ({ body }: { body: { imageUrl: string, type: string, sessionId: string } }) => {
     const { join, dirname } = await import("node:path")

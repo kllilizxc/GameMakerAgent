@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@elysiajs/cors": "^1.1.0",
+    "@elysiajs/static": "^1.4.7",
     "@game-agent/agent": "workspace:*",
     "@game-agent/common": "workspace:*",
     "@game-agent/perf": "workspace:*",

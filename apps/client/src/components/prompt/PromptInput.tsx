@@ -1,4 +1,5 @@
 import { Send, Square, Paperclip, X } from "lucide-react"
+import { useSessionStore } from "@/stores/session"
 import { FormEvent, useRef, useEffect, useState, ChangeEvent } from "react"
 import { validateImage, resizeImage } from "@/lib/image-utils"
 import { useError } from "@/hooks/useError"
@@ -107,15 +108,30 @@ export function PromptInput({
     })
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!canSubmit) return
 
-    const base64Attachments = attachments.map(a => a.base64).filter(Boolean) as string[]
-    onSubmit(e, base64Attachments.length > 0 ? base64Attachments : undefined)
+    const { sessionId } = useSessionStore.getState()
+    if (!sessionId) {
+      showError({ title: "Session error", description: "No active session found" })
+      return
+    }
 
-    // Clear attachments after submit
-    setAttachments([])
+    setIsProcessing(true)
+    try {
+      const dataUrls = attachments
+        .map(a => a.base64)
+        .filter((b): b is string => !!b)
+
+      onSubmit(e, dataUrls.length > 0 ? dataUrls : undefined)
+      setAttachments([])
+    } catch (err) {
+      console.error("Failed to process images", err)
+      showError({ title: "Process Failed", description: "Could not handle images" })
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   return (

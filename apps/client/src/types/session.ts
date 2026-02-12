@@ -1,7 +1,18 @@
+export interface MessagePart {
+  type: "text" | "image" | "ui"
+  text?: string
+  url?: string
+  ui?: {
+    name: string
+    props: Record<string, any>
+  }
+}
+
 export interface Message {
   id: string
   role: "user" | "agent"
-  content: string
+  content: string // Kept for backward compatibility/summary
+  parts?: MessagePart[]
   streaming?: boolean
   timestamp: number
   metadata?: {
