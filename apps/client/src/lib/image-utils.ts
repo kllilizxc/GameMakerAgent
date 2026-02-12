@@ -1,4 +1,5 @@
 import { FILE_SIZE_LIMIT_BINARY } from "@game-agent/common"
+import { fetchBlob } from "./api"
 
 export { isImageFile } from "@game-agent/common"
 
@@ -60,4 +61,22 @@ export function validateImage(file: File): string | null {
     }
 
     return null
+}
+
+export async function processImageUrl(url: string): Promise<{ file: File; preview: string; base64: string } | null> {
+    try {
+        const blob = await fetchBlob(url)
+        const file = new File([blob], "image.jpg", { type: blob.type })
+
+        const errorMsg = validateImage(file)
+        if (errorMsg) return null
+
+        const preview = URL.createObjectURL(file)
+        const base64 = await resizeImage(file)
+
+        return { file, preview, base64 }
+    } catch (err) {
+        console.error("Failed to process image URL:", err)
+        return null
+    }
 }

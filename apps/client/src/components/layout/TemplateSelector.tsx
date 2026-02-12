@@ -35,7 +35,17 @@ export function TemplateSelector() {
                     {templates.map((template) => (
                         <button
                             key={template.id}
-                            onClick={() => createSession(template.id)}
+                            onClick={async () => {
+                                try {
+                                    const data = await createSession(template.id)
+                                    if (data?.sessionId) {
+                                        navigate(`/session/${data.sessionId}`)
+                                    }
+                                } catch (e) {
+                                    // Error handled by store
+                                    console.error(e)
+                                }
+                            }}
                             className="group relative flex flex-col items-start p-6 rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 hover:border-zinc-700 transition-all duration-200 text-left hover:shadow-2xl hover:shadow-blue-900/10"
                         >
                             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />

@@ -1,7 +1,7 @@
 import { Send, Square, Paperclip, X } from "lucide-react"
 import { useSessionStore } from "@/stores/session"
 import { FormEvent, useRef, useEffect, useState, ChangeEvent } from "react"
-import { validateImage, resizeImage } from "@/lib/image-utils"
+import { validateImage, resizeImage, processImageUrl } from "@/lib/image-utils"
 import { useError } from "@/hooks/useError"
 
 interface PromptInputProps {
@@ -133,6 +133,32 @@ export function PromptInput({
       setIsProcessing(false)
     }
   }
+
+  // Handle draft attachments from session store (e.g. on rewind)
+  const { draftAttachments, setDraftAttachments } = useSessionStore()
+  useEffect(() => {
+    if (draftAttachments && draftAttachments.length > 0) {
+      setIsProcessing(true)
+      const processDrafts = async () => {
+        try {
+          const newAttachments: Attachment[] = []
+          for (const url of draftAttachments) {
+            const result = await processImageUrl(url)
+            if (result) {
+              newAttachments.push(result)
+            }
+          }
+          setAttachments(prev => [...prev, ...newAttachments])
+          setDraftAttachments(null)
+        } catch (err) {
+          console.error("Failed to process draft attachments", err)
+        } finally {
+          setIsProcessing(false)
+        }
+      }
+      processDrafts()
+    }
+  }, [draftAttachments, setDraftAttachments, showError])
 
   return (
     <form onSubmit={handleSubmit} className="p-4 border-t border-border">

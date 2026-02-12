@@ -1,6 +1,6 @@
 
 import { create } from "zustand"
-import { HTTP_SERVER_URL } from "@/lib/constants"
+import { fetchModels, setActiveModel } from "@/lib/api"
 
 interface Model {
     id: string
@@ -25,9 +25,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     fetchModels: async () => {
         set({ isLoading: true })
         try {
-            // Use the constant or relative URL
-            const res = await fetch(`${HTTP_SERVER_URL}/api/config/models`)
-            const data = await res.json()
+            const data = await fetchModels()
             set({
                 models: data.models,
                 activeModel: data.activeModel || null
@@ -43,11 +41,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         // Optimistic update
         set({ activeModel: modelId || null })
         try {
-            await fetch(`${HTTP_SERVER_URL}/api/config/model`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ modelId })
-            })
+            await setActiveModel(modelId)
         } catch (e) {
             console.error("Failed to set active model", e)
             // Revert on failure? For now, just log.

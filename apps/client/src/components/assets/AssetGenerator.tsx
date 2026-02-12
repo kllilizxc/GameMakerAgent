@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils"
 // Ensure icons are imported. If they don't exist in lucide-react (unlikely), I'll swap them.
 // Image, Save, X, RotateCcw, Loader2, Download are standard.
 import { Image as ImageIcon, Save, X, RotateCcw, Loader2, Check } from "lucide-react"
+import { generateImage, saveImage } from "@/lib/api"
 
 type AssetType = "backgrounds" | "characters" | "items" | "ui" | "misc"
 // 1024x1024 (1:1), 1280x720 (16:9), 720x1280 (9:16), 1216x896 (4:3)
@@ -31,15 +32,8 @@ export function AssetGenerator() {
         setSavedPath(null)
 
         try {
-            const response = await fetch("http://localhost:3001/api/generate-image", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt, size })
-            })
+            const data = await generateImage(prompt, size)
 
-            if (!response.ok) throw new Error("Generation failed")
-
-            const data = await response.json()
             const content = data.content
             // Simple regex to extract URL from markdown if present
             const markdownRegex = /!\[.*?\]\((.*?)\)/
@@ -65,19 +59,7 @@ export function AssetGenerator() {
         setStatus("saving")
 
         try {
-            const response = await fetch("http://localhost:3001/api/save-image", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    imageUrl: generatedImage,
-                    type,
-                    sessionId
-                })
-            })
-
-            if (!response.ok) throw new Error("Save failed")
-
-            const data = await response.json()
+            const data = await saveImage(generatedImage, type, sessionId)
             setSavedPath(data.path)
             setStatus("saved")
 

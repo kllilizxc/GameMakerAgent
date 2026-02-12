@@ -1,13 +1,13 @@
 import { create } from "zustand"
 import { useFilesStore } from "./files"
 import type { Message, Activity, FsPatch, TemplateInfo } from "@/types/session"
-import { fetchTemplates, deleteSession } from "@/lib/api"
+import { fetchTemplates, deleteSession, createSession, cancelRun, fetchMessages, rewindSession, startRun } from "@/lib/api"
 
 import { storage, type SessionHistoryItem } from "@/lib/storage"
 import { devtools } from "zustand/middleware"
 import { MSG_PAGE_SIZE_DEFAULT } from "@game-agent/common"
-import { SERVER_URL } from "@/lib/constants"
 import { useSettingsStore } from "./settings"
+import { parseSseStream } from "@/lib/sse"
 
 interface SessionState {
   sessionId: string | null
@@ -18,7 +18,6 @@ interface SessionState {
   streamingMessageId: string | null
   sequence: number
   error: string | null
-  ws: WebSocket | null
   currentRunId: string | null
   templates: TemplateInfo[]
   serverUrl: string | null
@@ -27,15 +26,13 @@ interface SessionState {
   hasMoreMessages: boolean
   todos: Array<{ id: string; content: string; status: string; priority?: string }>
   draftPrompt: string | null
+  draftAttachments: string[] | null
   reconnectTimer: ReturnType<typeof setTimeout> | null
 
-
-  connect: (serverUrl: string, engineId?: string) => void
   loadMoreMessages: () => void
-  disconnect: () => void
   fetchTemplates: () => void
-  createSession: (templateId: string) => void
-  resumeSession: (sessionId: string) => void
+  createSession: (templateId: string) => Promise<any>
+  resumeSession: (sessionId: string) => Promise<any>
   addToHistory: (sessionId: string, templateId?: string) => void
   updateSessionName: (sessionId: string, name: string) => void
   loadHistory: () => void
@@ -50,8 +47,9 @@ interface SessionState {
   clearActivities: () => void
   setStatus: (status: SessionState["status"]) => void
   interrupt: () => void
-  rewind: (messageId: string, edit?: boolean, content?: string) => void
+  rewind: (messageId: string, edit?: boolean) => void
   setDraftPrompt: (prompt: string | null) => void
+  setDraftAttachments: (attachments: string[] | null) => void
 }
 
 export const useSessionStore = create<SessionState>()(
@@ -65,78 +63,16 @@ export const useSessionStore = create<SessionState>()(
       streamingMessageId: null,
       sequence: 0,
       error: null,
-      ws: null,
       currentRunId: null,
       templates: [],
       serverUrl: null,
-
       history: [],
       isLoadingMore: false,
       hasMoreMessages: false,
       todos: [],
       draftPrompt: null,
+      draftAttachments: null,
       reconnectTimer: null,
-
-      connect: (serverUrl: string, engineId = "phaser-2d") => {
-        const { ws, reconnectTimer } = get()
-        if (ws) ws.close()
-        if (reconnectTimer) clearTimeout(reconnectTimer)
-
-        set({ status: "connecting", engineId, error: null, serverUrl, reconnectTimer: null })
-
-        const socket = new WebSocket(`${serverUrl}/ws`)
-
-        socket.onopen = () => {
-          console.log("[ws] Connected")
-          set({ ws: socket, status: "idle" })
-        }
-
-        socket.onmessage = (event) => {
-          try {
-            const msg = JSON.parse(event.data)
-            if (msg.type === "fs/snapshot" || msg.type === "session/created") {
-
-            }
-            handleServerMessage(msg, set, get)
-          } catch (e) {
-            console.error("Failed to parse message:", e)
-          }
-        }
-
-        socket.onerror = () => {
-          set({ status: "error", error: "Connection failed" })
-        }
-
-        socket.onclose = () => {
-          const { ws } = get()
-          if (ws) {
-            // Connection closed unexpectedly (not by disconnect())
-            // Remove the dead socket reference but keep the error status
-            // Schedule reconnection
-            console.log("[ws] Connection lost, reconnecting in 10s...")
-            set({ ws: null, status: "error", error: "Connection lost. Reconnecting..." })
-
-            const timer = setTimeout(() => {
-              get().connect(serverUrl, engineId)
-            }, 10000)
-
-            set({ reconnectTimer: timer })
-          } else {
-            // Expected close (e.g. via disconnect())
-            set({ ws: null, status: "idle" })
-          }
-        }
-      },
-
-      disconnect: () => {
-        const { ws, reconnectTimer } = get()
-        if (reconnectTimer) clearTimeout(reconnectTimer)
-
-        if (ws) {
-          ws.close()
-          set({ ws: null, sessionId: null, status: "idle", reconnectTimer: null })
-        }
-      },
 
       fetchTemplates: async () => {
         try {
@@ -147,30 +83,60 @@ export const useSessionStore = create<SessionState>()(
         }
       },
 
-      createSession: (templateId: string) => {
-        const { connect } = get()
-        connect(useSessionStore.getState().serverUrl || SERVER_URL)
-
-        const checkConnection = setInterval(() => {
-          const { ws } = get()
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            clearInterval(checkConnection)
-            ws.send(JSON.stringify({ type: "session/create", engineId: "phaser-2d", templateId }))
+      createSession: async (templateId: string) => {
+        const { engineId } = get()
+        try {
+          const data = await createSession(engineId, templateId)
+          if (data.sessionId) {
+            set({ sessionId: data.sessionId, todos: data.todos || [] })
+            if (data.snapshot) {
+              useFilesStore.getState().setSnapshot(data.snapshot.files)
+            }
+            if (data.messages) {
+              set({
+                messages: processLoadedMessages(data.messages.list),
+                hasMoreMessages: data.messages.hasMore
+              })
+            }
+            get().addToHistory(data.sessionId, data.templateId)
           }
-        }, 100)
+          return data
+        } catch (e) {
+          console.error("Failed to create session:", e)
+          set({ status: "error", error: "Failed to create session" })
+          throw e
+        }
       },
 
-      resumeSession: (sessionId: string) => {
-        const { connect } = get()
-        connect(useSessionStore.getState().serverUrl || SERVER_URL)
+      resumeSession: async (sessionId: string) => {
+        const state = get()
+        // If already in memory and session matches, skip
+        if (state.sessionId === sessionId && state.messages.length > 0) {
+          return { sessionId }
+        }
 
-        const checkConnection = setInterval(() => {
-          const { ws } = get()
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            clearInterval(checkConnection)
-            ws.send(JSON.stringify({ type: "session/create", engineId: "phaser-2d", sessionId }))
+        const { engineId } = get()
+        try {
+          const data = await createSession(engineId, undefined, sessionId)
+          if (data.sessionId) {
+            set({ sessionId: data.sessionId, todos: data.todos || [] })
+            if (data.snapshot) {
+              useFilesStore.getState().setSnapshot(data.snapshot.files)
+            }
+            if (data.messages) {
+              set({
+                messages: processLoadedMessages(data.messages.list),
+                hasMoreMessages: data.messages.hasMore
+              })
+            }
+            get().addToHistory(data.sessionId, data.templateId)
           }
-        }, 100)
+          return data
+        } catch (e) {
+          console.error("Failed to resume session:", e)
+          set({ status: "error", error: "Failed to resume session" })
+          throw e
+        }
       },
 
       addToHistory: (sessionId: string, templateId?: string) => {
@@ -199,12 +165,8 @@ export const useSessionStore = create<SessionState>()(
             ].slice(0, 10) // Keep last 10
           }
 
-          // Sort by recency
           newHistory.sort((a, b) => b.lastActive - a.lastActive)
-
-          // Save via storage protocol
           storage.saveHistory(newHistory)
-
           return { history: newHistory }
         })
       },
@@ -242,43 +204,40 @@ export const useSessionStore = create<SessionState>()(
       },
 
       leaveSession: () => {
-        get().disconnect()
         useFilesStore.getState().reset()
-        // Clear session state to prevent duplicates on re-entry
-        set({ messages: [], activities: [], streamingMessageId: null, sequence: 0 })
+        set({ sessionId: null, messages: [], activities: [], streamingMessageId: null, sequence: 0, status: "idle" })
       },
 
-      sendPrompt: (prompt: string, attachments?: string[]) => {
+      sendPrompt: async (prompt: string, attachments?: string[]) => {
         const state = get()
-        const { ws, sessionId, engineId, status } = state
+        const { sessionId, status } = state
 
-        if (!ws) {
-          console.error("[ws] No WebSocket connection")
-          return
-        }
-        if (status === "running") {
-
-          return
-        }
+        if (status === "running") return
         if (!sessionId) {
-          console.error("[ws] No sessionId available. Session not initialized.")
+          console.error("[api] No sessionId available")
           return
         }
 
-        // Add user message - DEPRECATED: Rely on server broadcast for ID consistency
-        set({ status: "running" })
+        set({ status: "running", error: null })
 
+        try {
+          const model = useSettingsStore.getState().activeModel
+          const response = await startRun(sessionId, prompt, attachments, model)
 
-        // Send to server
-        const message = {
-          type: "run/start",
-          sessionId,
-          engineId,
-          prompt,
-          attachments,
-          model: useSettingsStore.getState().activeModel,
+          if (!response.ok) throw new Error(`Failed to start run: ${response.statusText}`)
+
+          const reader = response.body?.getReader()
+          if (!reader) throw new Error("No response body")
+
+          await parseSseStream(reader, (msg) => {
+            handleServerMessage(msg, set, get)
+          })
+        } catch (e) {
+          console.error("Failed to send prompt:", e)
+          set({ status: "error", error: e instanceof Error ? e.message : "Failed to send prompt" })
+        } finally {
+          set((s) => (s.status === "running" ? { status: "idle" } : {}))
         }
-        ws.send(JSON.stringify(message))
       },
 
       addMessage: (message: Message) => {
@@ -292,25 +251,8 @@ export const useSessionStore = create<SessionState>()(
           if (existingIndex !== -1) {
             const messages = [...s.messages]
             const msg = { ...messages[existingIndex] }
-            msg.streaming = true
-
-            // Ensure parts exist
-            if (!msg.parts) {
-              msg.parts = [{ type: "text", text }]
-            } else {
-              // Find the last text part and update it
-              const lastTextPartIndex = [...msg.parts].reverse().findIndex(p => p.type === "text")
-              if (lastTextPartIndex !== -1) {
-                const index = msg.parts.length - 1 - lastTextPartIndex
-                msg.parts[index] = { ...msg.parts[index], text }
-              } else {
-                msg.parts.push({ type: "text", text })
-              }
-            }
-
-            // Sync legacy content field
             msg.content = text
-
+            msg.streaming = true
             messages[existingIndex] = msg
             return {
               messages,
@@ -318,33 +260,32 @@ export const useSessionStore = create<SessionState>()(
             }
           }
 
-          // Create new message
-          const newMsg: Message = {
+          const newMessage: Message = {
             id: textId,
             role: "agent",
             content: text,
-            parts: [{ type: "text", text }],
             streaming: true,
             timestamp: Date.now(),
           }
+
           return {
-            messages: [...s.messages, newMsg],
+            messages: [...s.messages, newMessage],
             streamingMessageId: textId,
-            sequence: s.sequence + 1,
           }
         })
       },
 
       finalizeStreamingMessage: () => {
-        set((s) => ({
-          messages: s.messages.map((m) =>
+        set((s) => {
+          if (!s.streamingMessageId) return {}
+          const messages = s.messages.map((m) =>
             m.id === s.streamingMessageId ? { ...m, streaming: false } : m
-          ),
-          streamingMessageId: null,
-        }))
+          )
+          return { messages, streamingMessageId: null }
+        })
       },
 
-      addActivity: (activity) => {
+      addActivity: (activity: Omit<Activity, "id" | "timestamp">) => {
         set((s) => ({
           activities: [
             ...s.activities,
@@ -354,7 +295,6 @@ export const useSessionStore = create<SessionState>()(
               timestamp: Date.now(),
             },
           ],
-          sequence: s.sequence + 1,
         }))
       },
 
@@ -362,84 +302,83 @@ export const useSessionStore = create<SessionState>()(
 
       setStatus: (status) => set({ status }),
 
-      loadMoreMessages: () => {
-
-        const { ws, messages, isLoadingMore, hasMoreMessages, sessionId } = get()
-        if (!ws || isLoadingMore || !hasMoreMessages || !sessionId || messages.length === 0) return
+      loadMoreMessages: async () => {
+        const { sessionId, messages, isLoadingMore, hasMoreMessages } = get()
+        if (!sessionId || isLoadingMore || !hasMoreMessages) return
 
         set({ isLoadingMore: true })
-        ws.send(JSON.stringify({
-          type: "messages/list",
-          sessionId,
-          limit: MSG_PAGE_SIZE_DEFAULT,
-          skip: messages.length,
-        }))
+        try {
+          const data = await fetchMessages(sessionId, MSG_PAGE_SIZE_DEFAULT, messages.length)
+          if (data && data.messages) {
+            handleServerMessage({
+              type: "messages/list",
+              messages: data.messages,
+              hasMore: data.hasMore,
+              replace: false
+            }, set, get)
+          }
+        } catch (e) {
+          console.error("Failed to load more messages:", e)
+        } finally {
+          set({ isLoadingMore: false })
+        }
       },
 
-      interrupt: () => {
-        const { ws, sessionId, status, currentRunId } = get()
-        if (!ws || !sessionId || status !== "running" || !currentRunId) return
-
-
-        ws.send(JSON.stringify({
-          type: "run/cancel",
-          sessionId,
-          runId: currentRunId
-        }))
+      interrupt: async () => {
+        const { sessionId, currentRunId } = get()
+        if (!sessionId || !currentRunId) return
+        try {
+          await cancelRun(sessionId, currentRunId)
+        } catch (e) {
+          console.error("Failed to interrupt:", e)
+        }
       },
 
-      rewind: (messageId: string, edit = false, content?: string) => {
-        const { ws, sessionId, status } = get()
-        if (!ws || !sessionId) return
-        if (status === "running") {
-          console.warn("Cannot rewind while running")
-          return
-        }
-
-
-        ws.send(JSON.stringify({
-          type: "session/rewind",
-          sessionId,
-          messageId,
-          edit
-        }))
-
-        if (edit && content) {
-          set({ draftPrompt: content })
-        }
-
-        // Optimistically clear later messages
-        set((s) => {
-          // If editing, we remove the target message itself from view (it will be in input)
-          // If just rewinding (viewing), we keep it.
-          // Actually, if we rewind history to Parent, the target message effectively disappears from history.
-          // So in both cases (if edit=true, or if we supported non-edit rewind to parent), it disappears.
-          // But here edit=true means "rewind to parent".
-          // If edit=false, we rewind TO the message (so it stays).
-
-          let index = s.messages.findIndex(m => m.id === messageId)
-          if (index !== -1) {
-            // If edit=true, we slice BEFORE this message.
-            // If edit=false, we slice INCLUDING this message.
-            const sliceEnd = edit ? index : index + 1
-            return {
-              messages: s.messages.slice(0, sliceEnd),
-              activities: s.activities.filter(a => a.timestamp <= s.messages[index].timestamp)
+      rewind: async (messageId: string, edit?: boolean) => {
+        const { sessionId, messages } = get()
+        if (!sessionId) return
+        try {
+          if (edit) {
+            const msg = messages.find(m => m.id === messageId)
+            if (msg) {
+              set({ draftPrompt: msg.content })
+              const attachments = msg.parts
+                ?.filter(p => p.type === "image" && p.url)
+                .map(p => p.url!) || []
+              if (attachments.length > 0) {
+                set({ draftAttachments: attachments })
+              }
             }
           }
-          return {}
-        })
+
+          const data = await rewindSession(sessionId, messageId, edit)
+          if (data && data.messages) {
+            if (data.snapshot) {
+              useFilesStore.getState().setSnapshot(data.snapshot.files)
+            }
+            handleServerMessage({
+              type: "messages/list",
+              messages: data.messages.list,
+              hasMore: data.messages.hasMore,
+              replace: true
+            }, set, get)
+          }
+        } catch (e) {
+          console.error("Failed to rewind session:", e)
+        }
       },
 
       setDraftPrompt: (prompt) => set({ draftPrompt: prompt }),
+      setDraftAttachments: (attachments) => set({ draftAttachments: attachments }),
     }),
     { name: "SessionStore" }
-  ))
+  )
+)
 
 // Helper to process server messages into client format
 function processLoadedMessages(messages: any[]): Message[] {
   return messages.map((pm, idx) => ({
-    id: pm.id || `restored-${pm.timestamp}-${idx}`,
+    id: pm.id || `restored-${pm.timestamp} -${idx} `,
     role: pm.role,
     content: pm.content,
     parts: pm.parts,
@@ -494,24 +433,25 @@ function handleServerMessage(
         const callId = event.data.callId || crypto.randomUUID()
 
         set((s) => {
-          const existingIndex = s.activities.findIndex((a) => a.callId === callId)
+          const activities = s.activities || []
+          const existingIndex = activities.findIndex((a: any) => a.callId === callId)
           const newActivity = {
             id: callId,
             type: "tool" as const,
             completed: false,
             callId,
-            timestamp: existingIndex !== -1 ? s.activities[existingIndex].timestamp : Date.now(),
+            timestamp: existingIndex !== -1 ? activities[existingIndex].timestamp : Date.now(),
             data: { tool, title },
           }
 
           if (existingIndex !== -1) {
-            const activities = [...s.activities]
-            activities[existingIndex] = newActivity
-            return { activities }
+            const nextActivities = [...activities]
+            nextActivities[existingIndex] = newActivity
+            return { activities: nextActivities }
           }
 
           return {
-            activities: [...s.activities, newActivity],
+            activities: [...activities, newActivity],
             sequence: s.sequence + 1,
           }
         })
@@ -520,18 +460,19 @@ function handleServerMessage(
         const callId = event.data.callId || crypto.randomUUID()
 
         set((s) => {
-          const existingIndex = s.activities.findIndex((a) => a.callId === callId)
+          const activities = s.activities || []
+          const existingIndex = activities.findIndex((a: any) => a.callId === callId)
 
           if (existingIndex !== -1) {
-            const activities = [...s.activities]
-            activities[existingIndex] = {
-              ...activities[existingIndex],
+            const nextActivities = [...activities]
+            nextActivities[existingIndex] = {
+              ...nextActivities[existingIndex],
               completed: true,
               data: { tool, title },
             }
 
             // Extract todos from todowrite tool
-            const updates: Partial<SessionState> = { activities }
+            const updates: Partial<SessionState> = { activities: nextActivities }
             const metadata = (event.data as any)?.metadata
             if (tool === "todowrite" && metadata?.todos) {
               updates.todos = metadata.todos
@@ -541,7 +482,7 @@ function handleServerMessage(
 
           return {
             activities: [
-              ...s.activities,
+              ...activities,
               {
                 id: callId,
                 type: "tool" as const,
@@ -564,7 +505,8 @@ function handleServerMessage(
       const incoming = processLoadedMessages([msgUpdate.message])[0]
 
       set((s) => {
-        const messageMap = new Map(s.messages.map((m) => [m.id, m]))
+        const messages = s.messages || []
+        const messageMap = new Map(messages.map((m: any) => [m.id, m]))
 
         // Ensure the incoming message keeps the streaming flag if it was indeed the one being streamed
         if (incoming.id === s.streamingMessageId) {
@@ -668,14 +610,13 @@ function handleServerMessage(
       const hasMore = msg.hasMore as boolean
       const shouldReplace = msg.replace as boolean | undefined
 
-      if (msgs && msgs.length > 0) {
-        const serverMessages = msg.messages as any[]
+      if (shouldReplace || (msgs && msgs.length > 0)) {
+        const serverMessages = (msg.messages || []) as any[]
         const incomingMessages = processLoadedMessages(serverMessages)
         const incomingActivities = serverMessages.flatMap(m => m.activities || [])
 
         if (shouldReplace) {
           // Replace mode (for rewind): completely replace messages and activities
-          // Logic for replace...
           incomingMessages.sort((a, b) => a.timestamp - b.timestamp)
           const activities = incomingActivities.map((a: any) => ({
             id: a.id,
@@ -693,11 +634,11 @@ function handleServerMessage(
             isLoadingMore: false,
           })
         } else {
-          // Merge mode (for load more or udpates): merge with existing messages
+          // Merge mode (for load more or updates): merge with existing messages
           set((s) => {
-            const messageMap = new Map(s.messages.map((m) => [m.id, m]))
+            const currentMessages = s.messages || []
+            const messageMap = new Map(currentMessages.map((m: any) => [m.id, m]))
 
-            // Deduplicate logic removed - simply update/add messages
             incomingMessages.forEach((incoming) => {
               messageMap.set(incoming.id, incoming)
             })
@@ -705,7 +646,8 @@ function handleServerMessage(
             const mergedMessages = Array.from(messageMap.values())
             mergedMessages.sort((a, b) => a.timestamp - b.timestamp)
 
-            const activityMap = new Map(s.activities.map((a) => [a.id, a]))
+            const currentActivities = s.activities || []
+            const activityMap = new Map(currentActivities.map((a: any) => [a.id, a]))
             incomingActivities.forEach((a) => {
               activityMap.set(a.id, {
                 id: a.id,

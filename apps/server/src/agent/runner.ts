@@ -159,9 +159,22 @@ export async function executeRun(
   }
 }
 
-export function cancelRun(runId: string): boolean {
+export function cancelRun(runId: string, session?: Session): boolean {
   const ctx = activeRuns.get(runId)
   if (!ctx) return false
   ctx.aborted = true
+
+  // Also cancel in the internal opencode agent if we have a session ID
+  if (session?.opencodeSessionId) {
+    import("@game-agent/agent").then(async ({ SessionPrompt, Instance }) => {
+      await Instance.provide({
+        directory: session.workspaceDir,
+        fn: async () => {
+          SessionPrompt.cancel(session.opencodeSessionId!)
+        }
+      })
+    }).catch(err => console.error(`[runner] Failed to cancel opencode session ${session.opencodeSessionId}:`, err))
+  }
+
   return true
 }

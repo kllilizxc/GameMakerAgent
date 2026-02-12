@@ -5,9 +5,11 @@ import { createWorkspace, deleteWorkspace, readWorkspaceFiles, workspacePath, lo
 import { Perf } from "@game-agent/perf"
 import { GlobalBus, MessageV2, Session as OcSession, Instance } from "@game-agent/agent"
 import { transformMessages } from "./transform"
+export { transformMessages }
 
-interface RawSocket {
+interface StreamClient {
   send: (data: string) => void
+  close: () => void
 }
 // ... existing functions ...
 
@@ -81,9 +83,6 @@ export function initSessionManager() {
 }
 
 
-
-
-
 export interface Session {
   id: string
   engineId: EngineId
@@ -96,7 +95,7 @@ export interface Session {
   seq: number
 
   ackedSeq: number
-  sockets: Set<RawSocket>
+  clients: Set<StreamClient>
   createdAt: Date
 }
 
@@ -136,7 +135,7 @@ export async function createSession(engineId: EngineId, templateId?: string, des
         leafId: metadata?.leafId,
         seq: 0,
         ackedSeq: 0,
-        sockets: new Set(),
+        clients: new Set(),
         createdAt: new Date(),
       }
       sessions.set(id, session)
@@ -161,7 +160,7 @@ export async function createSession(engineId: EngineId, templateId?: string, des
     currentRunId: null,
     seq: 0,
     ackedSeq: 0,
-    sockets: new Set(),
+    clients: new Set(),
     createdAt: new Date(),
   }
 
@@ -201,7 +200,7 @@ export async function loadSession(id: string): Promise<Session | undefined> {
       leafId: metadata?.leafId,
       seq: 0,
       ackedSeq: 0,
-      sockets: new Set(),
+      clients: new Set(),
       createdAt: new Date(),
     }
     sessions.set(id, session)
@@ -218,7 +217,7 @@ export function getSession(id: string): Session | undefined {
 export async function destroySession(id: string): Promise<void> {
   const session = sessions.get(id)
   if (session) {
-    session.sockets.clear()
+    session.clients.clear()
     sessions.delete(id)
   }
 
@@ -235,12 +234,12 @@ export function finishRun(session: Session): void {
   session.currentRunId = null
 }
 
-export function addSocket(session: Session, socket: RawSocket): void {
-  session.sockets.add(socket)
+export function addClient(session: Session, client: StreamClient): void {
+  session.clients.add(client)
 }
 
-export function removeSocket(session: Session, socket: RawSocket): void {
-  session.sockets.delete(socket)
+export function removeClient(session: Session, client: StreamClient): void {
+  session.clients.delete(client)
 }
 
 export function broadcast(session: Session, message: ServerMessage): void {
@@ -248,10 +247,10 @@ export function broadcast(session: Session, message: ServerMessage): void {
   const eventType = event?.type
   const len = event?.data?.text?.length
   console.log(`[broadcast] ${Date.now()} sending ${message.type} ${eventType} ${len && `len=${len}`}`)
-  using timer = Perf.time("ws", "broadcast")
+  using timer = Perf.time("sse", "broadcast")
   const data = JSON.stringify(message)
-  for (const socket of session.sockets) {
-    socket.send(data)
+  for (const client of session.clients) {
+    client.send(data)
   }
 }
 

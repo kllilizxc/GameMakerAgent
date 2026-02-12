@@ -13,7 +13,11 @@ interface MessageItemProps {
 }
 
 export function MessageItem({ message }: MessageItemProps) {
-  const rewind = useSessionStore((state) => state.rewind)
+  const { rewind, status } = useSessionStore((state) => ({
+    rewind: state.rewind,
+    status: state.status
+  }))
+  const isRunning = status === "running"
 
   return (
     <div
@@ -66,9 +70,15 @@ export function MessageItem({ message }: MessageItemProps) {
       <div className="absolute top-3 -left-6 opacity-0 group-hover:opacity-100 transition-opacity">
         {message.role === "user" && (
           <button
-            onClick={() => rewind(message.id, true, message.content)}
-            className="p-1 hover:bg-secondary rounded-full text-xs flex items-center gap-1"
-            title="Rewind to this prompt"
+            onClick={() => rewind(message.id, true)}
+            disabled={isRunning}
+            className={cn(
+              "p-1 rounded-full text-xs flex items-center gap-1 transition-colors",
+              isRunning
+                ? "cursor-not-allowed opacity-50 text-muted-foreground"
+                : "hover:bg-secondary"
+            )}
+            title={isRunning ? "Rewind disabled during generation" : "Rewind to this prompt"}
           >
             <Undo2 className="w-3 h-3" />
           </button>
