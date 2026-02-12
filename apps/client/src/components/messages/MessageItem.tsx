@@ -67,7 +67,7 @@ export function MessageItem({ message }: MessageItemProps) {
         </div>
       </div>
 
-      <div className="absolute top-3 -left-6 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute -top-2 -left-2 opacity-0 group-hover:opacity-100 transition-opacity">
         {message.role === "user" && (
           <button
             onClick={() => rewind(message.id, true)}
@@ -76,11 +76,11 @@ export function MessageItem({ message }: MessageItemProps) {
               "p-1 rounded-full text-xs flex items-center gap-1 transition-colors",
               isRunning
                 ? "cursor-not-allowed opacity-50 text-muted-foreground"
-                : "hover:bg-secondary"
+                : "bg-secondary"
             )}
             title={isRunning ? "Rewind disabled during generation" : "Rewind to this prompt"}
           >
-            <Undo2 className="w-3 h-3" />
+            <Undo2 className="w-4 h-4" />
           </button>
         )}
       </div>
