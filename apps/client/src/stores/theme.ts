@@ -27,7 +27,7 @@ export const themes: Theme[] = [
             "--theme-destructive-foreground": "0 0% 98%",
             "--theme-border": "240 4% 16%",
             "--theme-ring": "142 76% 36%",
-            "--theme-code-background": "240 4% 9%",
+            "--theme-code-background": "240 4% 18%",
         },
     },
     {
@@ -48,7 +48,7 @@ export const themes: Theme[] = [
             "--theme-destructive-foreground": "0 0% 98%",
             "--theme-border": "217 33% 17%",
             "--theme-ring": "217 91% 60%",
-            "--theme-code-background": "217 33% 10%",
+            "--theme-code-background": "217 33% 22%",
         },
     },
     {
@@ -69,7 +69,7 @@ export const themes: Theme[] = [
             "--theme-destructive-foreground": "0 0% 98%",
             "--theme-border": "120 15% 14%",
             "--theme-ring": "142 70% 45%",
-            "--theme-code-background": "120 15% 8%",
+            "--theme-code-background": "120 15% 20%",
         },
     },
     {
@@ -90,7 +90,7 @@ export const themes: Theme[] = [
             "--theme-destructive-foreground": "0 0% 98%",
             "--theme-border": "200 30% 14%",
             "--theme-ring": "190 90% 50%",
-            "--theme-code-background": "200 30% 8%",
+            "--theme-code-background": "200 30% 20%",
         },
     },
     {
@@ -111,7 +111,7 @@ export const themes: Theme[] = [
             "--theme-destructive-foreground": "0 0% 98%",
             "--theme-border": "220 13% 91%",
             "--theme-ring": "142 70% 40%",
-            "--theme-code-background": "220 14% 90%",
+            "--theme-code-background": "220 14% 85%",
         },
     },
 ]

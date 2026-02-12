@@ -19,56 +19,78 @@ export function MessageItem({ message }: MessageItemProps) {
   }))
   const isRunning = status === "running"
 
+  const isUser = message.role === "user"
+  const isAgent = message.role === "agent"
+
+  const bubbleClass = cn(
+    "rounded-lg py-3 text-sm w-fit max-w-full",
+    isUser
+      ? "bg-primary px-4 text-primary-foreground ml-8"
+      : "bg-transparent prose prose-sm prose-invert max-w-none"
+  )
+
+  const imageBlockClass = cn(
+    "rounded-lg overflow-hidden w-fit max-w-full",
+    isUser ? "ml-8" : ""
+  )
+
   return (
-    <div
-      className={cn(
-        "message-item group relative",
-        "rounded-lg px-4 py-3 text-sm",
-        message.role === "user"
-          ? "bg-primary text-primary-foreground ml-8"
-          : "bg-secondary mr-8 prose prose-sm prose-invert max-w-none"
-      )}
-    >
-      <div className="flex flex-col gap-2">
-        {message.metadata?.summary && (
-          <TaskSteps steps={message.metadata.summary} />
-        )}
-        {message.metadata?.todos && (
-          <TodoList todos={message.metadata.todos} />
-        )}
-        <div className={cn("flex flex-col gap-2", message.role === "user" && "prose prose-sm prose-invert max-w-none")}>
-          {message.parts && message.parts.length > 0 ? (
-            message.parts.map((part, i) => (
-              <div key={i}>
-                {part.type === "text" && part.text && (
-                  <NodeRenderer content={part.text} final={!message.streaming} />
-                )}
-                {part.type === "image" && part.url && (
-                  <img
-                    src={part.url}
-                    alt="attachment"
-                    className="max-w-full rounded-md border border-border shadow-sm my-1"
-                    loading="lazy"
-                  />
-                )}
-                {part.type === "ui" && part.ui && (
-                  renderUIPart(part.ui.name, part.ui.props)
-                )}
-              </div>
-            ))
-          ) : (
-            // Fallback for old messages
-            message.role === "agent" ? (
-              <NodeRenderer content={message.content} final={!message.streaming} />
-            ) : (
-              message.content
-            )
+    <div className={cn("message-item group relative flex flex-col gap-2", isUser ? "items-end" : "items-start")}>
+      <div className={cn("flex flex-col gap-2 w-full", isUser ? "items-end" : "items-start")}>
+        {/* Main content block: metadata and text parts */}
+        <div className={bubbleClass}>
+          {message.metadata?.summary && (
+            <TaskSteps steps={message.metadata.summary} />
           )}
+          {message.metadata?.todos && (
+            <TodoList todos={message.metadata.todos} />
+          )}
+          <div className={cn("flex flex-col gap-2", isUser && "prose prose-sm prose-invert max-w-none")}>
+            {message.parts && message.parts.length > 0 ? (
+              message.parts
+                .filter(part => part.type === "text")
+                .map((part, i) => (
+                  <div key={i}>
+                    {part.text && (
+                      <NodeRenderer content={part.text} final={!message.streaming} />
+                    )}
+                  </div>
+                ))
+            ) : (
+              // Fallback for old messages
+              isAgent ? (
+                <NodeRenderer content={message.content} final={!message.streaming} />
+              ) : (
+                message.content
+              )
+            )}
+          </div>
         </div>
+
+        {/* Separate blocks for images and UI */}
+        {message.parts && message.parts.length > 0 && message.parts.map((part, i) => (
+          <div key={i}>
+            {part.type === "image" && part.url && (
+              <div className={imageBlockClass}>
+                <img
+                  src={part.url}
+                  alt="attachment"
+                  className="max-w-full rounded-md border border-border shadow-sm"
+                  loading="lazy"
+                />
+              </div>
+            )}
+            {part.type === "ui" && part.ui && (
+              <div className={isAgent ? "mr-8" : "ml-8"}>
+                {renderUIPart(part.ui.name, part.ui.props)}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
-      <div className="absolute -top-2 -left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        {message.role === "user" && (
+      <div className={cn("absolute opacity-0 group-hover:opacity-100 transition-opacity", "-top-2 -right-2")}>
+        {isUser && (
           <button
             onClick={() => rewind(message.id, true)}
             disabled={isRunning}
@@ -76,11 +98,11 @@ export function MessageItem({ message }: MessageItemProps) {
               "p-1 rounded-full text-xs flex items-center gap-1 transition-colors",
               isRunning
                 ? "cursor-not-allowed opacity-50 text-muted-foreground"
-                : "bg-secondary"
+                : "bg-secondary shadow-sm border border-border"
             )}
             title={isRunning ? "Rewind disabled during generation" : "Rewind to this prompt"}
           >
-            <Undo2 className="w-4 h-4" />
+            <Undo2 className="w-4 h-4 text-foreground" />
           </button>
         )}
       </div>
