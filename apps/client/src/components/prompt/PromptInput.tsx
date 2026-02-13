@@ -274,24 +274,13 @@ export function PromptInput({
               <button
                 type="button"
                 onClick={onInterrupt}
-                className="p-2 bg-destructive/10 text-destructive rounded-full hover:bg-destructive/20 transition-all active:scale-90"
+                className="p-2 cursor-pointer bg-accent/10 text-danger rounded-full hover:bg-accent/20 transition-all active:scale-90"
                 title="Stop generation"
               >
                 <Square size={14} fill="currentColor" />
               </button>
             ) : (
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className={[
-                  "p-2 rounded-full transition-all duration-200 active:scale-90",
-                  canSubmit
-                    ? "bg-primary text-primary-foreground hover:opacity-90 shadow-sm"
-                    : "bg-muted text-muted-primary/30 cursor-not-allowed text-overlay"
-                ].join(" ")}
-              >
-                <ArrowRight size={16} strokeWidth={2.5} />
-              </button>
+              <IconButton disabled={!canSubmit} rounded size="sm" icon={<ArrowRight size={18} strokeWidth={2.5} />} onClick={onSubmit} />
             )}
           </div>
         </div>

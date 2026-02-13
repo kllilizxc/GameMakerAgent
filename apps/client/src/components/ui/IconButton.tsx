@@ -23,6 +23,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
                         "h-10 w-10 p-2": size === "md",
                         "h-12 w-12 p-3": size === "lg",
                         "rounded-full": rounded,
+                        "cursor-not-allowed": props.disabled,
                     },
                     className
                 )}
