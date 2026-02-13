@@ -1,6 +1,6 @@
     [data-theme="forest-dark"] {
         color-scheme: dark;
-        --accent: oklch(0.5395 0.1159 162.42);
+        --accent: oklch(0.5795 0.1259 152.42);
         --accent-foreground: oklch(99.11% 0 0);
         --background: oklch(12.00% 0.0185 131.68);
         --border: oklch(28.00% 0.0185 131.68);
