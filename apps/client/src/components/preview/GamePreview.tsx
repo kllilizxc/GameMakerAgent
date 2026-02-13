@@ -1,8 +1,13 @@
-import { useEffect, useRef } from "react"
+import React, { useEffect, useRef } from "react"
 import { usePreviewStore } from "@/stores/preview"
 import { Loader2, AlertCircle, Gamepad2 } from "lucide-react"
 
-export function GamePreview() {
+interface GamePreviewProps {
+  width?: number
+  height?: number
+}
+
+export function GamePreview({ width = 800, height = 600 }: GamePreviewProps) {
   const { url, status, error, refreshKey } = usePreviewStore()
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
@@ -11,6 +16,34 @@ export function GamePreview() {
       iframeRef.current.src = url
     }
   }, [url, refreshKey])
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = React.useState(1)
+
+  useEffect(() => {
+    if (!containerRef.current) return
+
+    const updateScale = () => {
+      if (!containerRef.current) return
+      const container = containerRef.current
+      const { width: containerWidth, height: containerHeight } = container.getBoundingClientRect()
+
+      // Calculate scale to fit
+      const scaleX = containerWidth / width
+      const scaleY = containerHeight / height
+      const newScale = Math.min(scaleX, scaleY)
+
+      setScale(newScale)
+    }
+
+    const observer = new ResizeObserver(updateScale)
+    observer.observe(containerRef.current)
+
+    // Initial calculation
+    updateScale()
+
+    return () => observer.disconnect()
+  }, [width, height, containerRef.current])
 
   if (status === "booting" || status === "installing") {
     return (
@@ -43,11 +76,26 @@ export function GamePreview() {
   }
 
   return (
-    <iframe
-      ref={iframeRef}
-      className="w-full h-full border-0 bg-black"
-      title="Game Preview"
-      sandbox="allow-scripts allow-same-origin allow-forms"
-    />
+    <div
+      ref={containerRef}
+      className="w-full h-full flex items-center justify-center overflow-hidden bg-black relative"
+    >
+      <div
+        style={{
+          width,
+          height,
+          transform: `scale(${scale})`,
+          transformOrigin: 'center center',
+        }}
+        className="shrink-0"
+      >
+        <iframe
+          ref={iframeRef}
+          className="w-full h-full border-0 bg-white"
+          title="Game Preview"
+          sandbox="allow-scripts allow-same-origin allow-forms"
+        />
+      </div>
+    </div>
   )
 }
