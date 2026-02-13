@@ -256,7 +256,7 @@ export function PromptInput({
               placement="top"
               dark
               trigger={
-                <div className="flex items-center gap-1 px-2 py-1.5 text-[13px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground rounded-lg transition-colors outline-none">
+                <div className="flex items-center gap-1 px-2 py-1.5 text-[13px] font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors outline-none">
                   <ChevronUp size={12} />
                   <span>{activeModelName}</span>
                 </div>
