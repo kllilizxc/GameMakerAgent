@@ -7,6 +7,7 @@ import { MessageList } from "@/components/messages/MessageList"
 import { useMessageScroll } from "@/hooks/useMessageScroll"
 import { ChevronUp } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ScrollShadow } from "@heroui/react"
 
 interface PromptPanelProps {
   mobile?: boolean
@@ -56,9 +57,9 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
   return (
     <div
       className={cn(
-        "flex flex-col transition-all duration-300 ease-in-out",
+        "flex flex-col transition-all duration-300 ease-in-out bg-gradient-to-b from-surface via-background to-surface",
         mobile
-          ? "bg-background border-t border-border rounded-t-lg overflow-hidden h-auto"
+          ? "shadow-lg rounded-t-lg overflow-hidden h-auto"
           : "h-full"
       )}
     >
@@ -84,16 +85,17 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
       )}
 
       {/* Messages Area - Scrollable */}
-      <div
+      <ScrollShadow
         className={cn(
           "overflow-y-auto overflow-x-hidden custom-scrollbar transition-[height] duration-300 ease-in-out",
           mobile ? "px-4" : "p-4 flex-1",
           mobile && (expanded ? "h-[40vh] py-2" : "h-0 pointer-events-none p-0")
         )}
         ref={scrollContainerRef}
+        hideScrollBar
       >
         <MessageList messages={messages} />
-      </div>
+      </ScrollShadow>
 
       {/* Input Area */}
       <div className="shrink-0">

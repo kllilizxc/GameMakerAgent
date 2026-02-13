@@ -1,9 +1,7 @@
 import { useState } from "react"
 import { useSessionStore } from "@/stores/session"
-import { ThemeToggle } from "@/components/ui/ThemeToggle"
-import { ChevronLeft, Settings } from "lucide-react"
+import { ChevronLeft } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { ModelSettings } from "@/components/settings/ModelSettings"
 
 interface PromptHeaderProps {
   title?: string
@@ -17,7 +15,6 @@ export function PromptHeader({
   const navigate = useNavigate()
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState("")
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   const sessionId = useSessionStore((s) => s.sessionId)
   const history = useSessionStore((s) => s.history)
@@ -49,13 +46,13 @@ export function PromptHeader({
 
   return (
     <>
-      <div className="p-4 border-b border-border flex items-center gap-4">
+      <div className="p-4 flex items-center gap-4">
         <button
           onClick={() => {
             leaveSession()
             navigate("/templates")
           }}
-          className="p-2 -ml-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+          className="p-2 -ml-2 text-primary hover:text-primary-foreground hover:bg-primary rounded-lg transition-colors"
           title="Back to Templates"
         >
           <ChevronLeft size={20} />
@@ -69,11 +66,11 @@ export function PromptHeader({
               onBlur={handleSave}
               onKeyDown={handleKeyDown}
               autoFocus
-              className="text-lg font-semibold bg-transparent border-b border-zinc-600 outline-none focus:border-blue-500 transition-colors w-full max-w-md"
+              className="text-lg font-semibold bg-transparent border-b border-primary outline-none focus:border-primary transition-colors w-full max-w-md"
             />
           ) : (
             <h1
-              className="text-lg font-semibold cursor-pointer hover:text-blue-400 transition-colors"
+              className="text-lg font-semibold cursor-pointer hover:text-primary transition-colors"
               onClick={handleStartEdit}
               title="Click to edit session name"
             >
@@ -82,17 +79,7 @@ export function PromptHeader({
           )}
           {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
         </div>
-        <button
-          onClick={() => setIsSettingsOpen(true)}
-          className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
-          title="Model Settings"
-        >
-          <Settings size={20} />
-        </button>
-        <ThemeToggle />
       </div>
-      <ModelSettings open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
-
     </>
   )
 }

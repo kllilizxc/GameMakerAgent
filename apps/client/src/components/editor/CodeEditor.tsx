@@ -84,7 +84,7 @@ export function CodeEditor() {
   return (
     <div className="h-full flex">
       {/* File tree sidebar */}
-      <div className="w-48 border-r border-border overflow-y-auto flex-shrink-0">
+      <div className="w-48 border-r ml-4 border-border overflow-y-auto flex-shrink-0">
         <FileTree />
       </div>
 

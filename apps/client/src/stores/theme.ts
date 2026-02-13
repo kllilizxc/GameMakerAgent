@@ -1,156 +1,149 @@
 import { create } from "zustand"
+import { persist } from "zustand/middleware"
 
-export type ThemeId = "dark" | "midnight" | "forest" | "ocean" | "light"
+// 1. Dynamic Import of Theme CSS for Injection (Side-effects)
+const themeStyles = import.meta.glob("../themes/*.css", { eager: true })
 
-interface Theme {
-    id: ThemeId
+// 2. Dynamic Import of Theme CSS for Parsing (Content)
+const themeContent = import.meta.glob("../themes/*.css", { query: '?inline', eager: true })
+
+// 3. Parse Themes from Filenames and Content
+interface ThemeConfig {
     name: string
-    variables: Record<string, string>
+    modes: ("light" | "dark")[]
+    color?: string
 }
 
-export const themes: Theme[] = [
-    {
-        id: "dark",
-        name: "Dark",
-        variables: {
-            "--theme-background": "0 0% 4%",
-            "--theme-foreground": "0 0% 98%",
-            "--theme-primary": "142 76% 36%",
-            "--theme-primary-foreground": "0 0% 98%",
-            "--theme-secondary": "240 4% 16%",
-            "--theme-secondary-foreground": "0 0% 98%",
-            "--theme-muted": "240 4% 16%",
-            "--theme-muted-foreground": "240 5% 65%",
-            "--theme-accent": "240 4% 16%",
-            "--theme-accent-foreground": "0 0% 98%",
-            "--theme-destructive": "0 84% 60%",
-            "--theme-destructive-foreground": "0 0% 98%",
-            "--theme-border": "240 4% 16%",
-            "--theme-ring": "142 76% 36%",
-            "--theme-code-background": "240 4% 18%",
-        },
-    },
-    {
-        id: "midnight",
-        name: "Midnight",
-        variables: {
-            "--theme-background": "222 47% 8%",
-            "--theme-foreground": "210 40% 98%",
-            "--theme-primary": "217 91% 60%",
-            "--theme-primary-foreground": "0 0% 100%",
-            "--theme-secondary": "217 33% 17%",
-            "--theme-secondary-foreground": "210 40% 98%",
-            "--theme-muted": "217 33% 17%",
-            "--theme-muted-foreground": "215 20% 65%",
-            "--theme-accent": "217 33% 17%",
-            "--theme-accent-foreground": "210 40% 98%",
-            "--theme-destructive": "0 84% 60%",
-            "--theme-destructive-foreground": "0 0% 98%",
-            "--theme-border": "217 33% 17%",
-            "--theme-ring": "217 91% 60%",
-            "--theme-code-background": "217 33% 22%",
-        },
-    },
-    {
-        id: "forest",
-        name: "Forest",
-        variables: {
-            "--theme-background": "120 20% 6%",
-            "--theme-foreground": "120 10% 96%",
-            "--theme-primary": "142 70% 45%",
-            "--theme-primary-foreground": "0 0% 100%",
-            "--theme-secondary": "120 15% 14%",
-            "--theme-secondary-foreground": "120 10% 96%",
-            "--theme-muted": "120 15% 14%",
-            "--theme-muted-foreground": "120 10% 60%",
-            "--theme-accent": "120 15% 14%",
-            "--theme-accent-foreground": "120 10% 96%",
-            "--theme-destructive": "0 84% 60%",
-            "--theme-destructive-foreground": "0 0% 98%",
-            "--theme-border": "120 15% 14%",
-            "--theme-ring": "142 70% 45%",
-            "--theme-code-background": "120 15% 20%",
-        },
-    },
-    {
-        id: "ocean",
-        name: "Ocean",
-        variables: {
-            "--theme-background": "200 50% 6%",
-            "--theme-foreground": "200 10% 96%",
-            "--theme-primary": "190 90% 50%",
-            "--theme-primary-foreground": "200 50% 8%",
-            "--theme-secondary": "200 30% 14%",
-            "--theme-secondary-foreground": "200 10% 96%",
-            "--theme-muted": "200 30% 14%",
-            "--theme-muted-foreground": "200 15% 60%",
-            "--theme-accent": "200 30% 14%",
-            "--theme-accent-foreground": "200 10% 96%",
-            "--theme-destructive": "0 84% 60%",
-            "--theme-destructive-foreground": "0 0% 98%",
-            "--theme-border": "200 30% 14%",
-            "--theme-ring": "190 90% 50%",
-            "--theme-code-background": "200 30% 20%",
-        },
-    },
-    {
-        id: "light",
-        name: "Light",
-        variables: {
-            "--theme-background": "0 0% 100%",
-            "--theme-foreground": "222 47% 11%",
-            "--theme-primary": "142 70% 40%",
-            "--theme-primary-foreground": "0 0% 100%",
-            "--theme-secondary": "220 14% 96%",
-            "--theme-secondary-foreground": "222 47% 11%",
-            "--theme-muted": "220 14% 96%",
-            "--theme-muted-foreground": "220 9% 46%",
-            "--theme-accent": "220 14% 96%",
-            "--theme-accent-foreground": "222 47% 11%",
-            "--theme-destructive": "0 84% 60%",
-            "--theme-destructive-foreground": "0 0% 98%",
-            "--theme-border": "220 13% 91%",
-            "--theme-ring": "142 70% 40%",
-            "--theme-code-background": "220 14% 85%",
-        },
-    },
-]
+const registeredThemes: Record<string, ThemeConfig> = {}
+
+Object.keys(themeStyles).forEach((path) => {
+    // Extract filename: ../themes/ocean-light.css -> ocean-light
+    const filename = path.split("/").pop()?.replace(".css", "")
+    if (!filename) return
+
+    // Split into theme and mode
+    const parts = filename.split("-")
+    const mode = parts[parts.length - 1] as "light" | "dark"
+    if (mode !== "light" && mode !== "dark") return // Skip invalid files
+
+    const themeName = parts.slice(0, -1).join("-") // e.g., 'ocean', 'default'
+
+    // Parse CSS content to find --accent
+    let accentColor: string | undefined
+    if (themeContent[path]) {
+        const cssText = (themeContent[path] as any).default as string
+        // Match --accent: value;
+        const match = cssText.match(/--accent:\s*([^;}\n]+)/)
+        if (match) {
+            accentColor = match[1].trim()
+        }
+    }
+
+    if (!registeredThemes[themeName]) {
+        registeredThemes[themeName] = {
+            name: themeName.charAt(0).toUpperCase() + themeName.slice(1),
+            modes: [],
+            color: accentColor
+        }
+    } else {
+        // Prefer light mode color for the indicator, or use first found
+        if (mode === "light" && accentColor) {
+            registeredThemes[themeName].color = accentColor
+        } else if (!registeredThemes[themeName].color && accentColor) {
+            registeredThemes[themeName].color = accentColor
+        }
+    }
+
+    if (!registeredThemes[themeName].modes.includes(mode)) {
+        registeredThemes[themeName].modes.push(mode)
+    }
+})
+
+// Ensure we have at least default if nothing found (fallback)
+if (Object.keys(registeredThemes).length === 0) {
+    registeredThemes["default"] = { name: "Default", modes: ["light", "dark"] }
+}
+
+export const availableThemes = Object.entries(registeredThemes).map(([id, config]) => ({
+    id,
+    name: config.name,
+    modes: config.modes,
+    color: config.color
+}))
 
 interface ThemeState {
-    currentTheme: ThemeId
-    setTheme: (themeId: ThemeId) => void
-    loadTheme: () => void
+    theme: string
+    mode: "light" | "dark"
+    setTheme: (theme: string) => void
+    setMode: (mode: "light" | "dark") => void
+    toggleMode: () => void
 }
 
-const THEME_KEY = "game-agent-theme"
-
-function applyTheme(themeId: ThemeId) {
-    const theme = themes.find((t) => t.id === themeId)
-    if (!theme) return
-
+const applyThemeToDom = (theme: string, mode: "light" | "dark") => {
     const root = document.documentElement
-    Object.entries(theme.variables).forEach(([key, value]) => {
-        root.style.setProperty(key, value)
-    })
+    // Construct data-theme: e.g., "ocean-light"
+    const themeId = `${theme}-${mode}`
+    root.setAttribute("data-theme", themeId)
+    root.style.colorScheme = mode
+
+    if (mode === "dark") {
+        root.classList.add("dark")
+    } else {
+        root.classList.remove("dark")
+    }
 }
 
-export const useThemeStore = create<ThemeState>((set) => ({
-    currentTheme: "dark",
+export const useThemeStore = create<ThemeState>()(
+    persist(
+        (set, get) => ({
+            theme: "default",
+            mode: "dark",
 
-    setTheme: (themeId: ThemeId) => {
-        applyTheme(themeId)
-        localStorage.setItem(THEME_KEY, themeId)
-        set({ currentTheme: themeId })
-    },
+            setTheme: (theme) => {
+                const { mode } = get()
+                const config = registeredThemes[theme]
+                if (config && !config.modes.includes(mode)) {
+                    const newMode = config.modes[0]
+                    applyThemeToDom(theme, newMode)
+                    set({ theme, mode: newMode })
+                    return
+                }
 
-    loadTheme: () => {
-        try {
-            const stored = localStorage.getItem(THEME_KEY) as ThemeId | null
-            const themeId = stored && themes.find((t) => t.id === stored) ? stored : "dark"
-            applyTheme(themeId)
-            set({ currentTheme: themeId })
-        } catch {
-            applyTheme("dark")
+                applyThemeToDom(theme, mode)
+                set({ theme })
+            },
+
+            setMode: (mode) => {
+                const { theme } = get()
+                const config = registeredThemes[theme]
+                if (config && !config.modes.includes(mode)) {
+                    console.warn(`Theme ${theme} does not support ${mode} mode`)
+                    return
+                }
+
+                applyThemeToDom(theme, mode)
+                set({ mode })
+            },
+
+            toggleMode: () => {
+                const { theme, mode } = get()
+                const newMode = mode === "light" ? "dark" : "light"
+                const config = registeredThemes[theme]
+                if (config && !config.modes.includes(newMode)) {
+                    return
+                }
+
+                applyThemeToDom(theme, newMode)
+                set({ mode: newMode })
+            },
+        }),
+        {
+            name: "game-agent-theme-storage",
+            onRehydrateStorage: () => (state) => {
+                if (state) {
+                    applyThemeToDom(state.theme, state.mode)
+                }
+            }
         }
-    },
-}))
+    )
+)

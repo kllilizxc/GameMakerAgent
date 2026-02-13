@@ -1,11 +1,13 @@
 import { useState } from "react"
 import { cn } from "@/lib/utils"
-import { Code, Play, RefreshCw, Maximize2 } from "lucide-react"
+import { Code, Play, RefreshCw, Maximize2, Image as ImageIcon } from "lucide-react"
 import { GamePreview } from "@/components/preview/GamePreview"
 import { CodeEditor } from "@/components/editor/CodeEditor"
 import { AssetGenerator } from "@/components/assets/AssetGenerator"
-import { Image as ImageIcon } from "lucide-react"
 import { usePreviewStore } from "@/stores/preview"
+import { ThemeToggle } from "../ui/ThemeToggle"
+import { IconButton } from "@/components/ui/IconButton"
+import { Tabs } from "@heroui/react"
 
 type View = "preview" | "editor" | "assets"
 
@@ -16,65 +18,62 @@ export function WorkspaceArea() {
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="h-12 border-b border-border flex items-center justify-between px-4 flex-shrink-0">
-        {/* View toggle */}
-        <div className="flex bg-secondary rounded-lg p-1">
-          <button
-            onClick={() => setView("preview")}
-            className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors",
-              view === "preview"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
+      <div className="h-12 flex items-center justify-between px-4 flex-shrink-0">
+        {/* View toggle using HeroUI Tabs */}
+        <div className="flex items-center">
+          <Tabs
+            aria-label="Workspace view"
+            variant="primary"
+            selectedKey={view}
+            onSelectionChange={(key) => setView(key as View)}
           >
-            <Play size={16} />
-            Preview
-          </button>
-          <button
-            onClick={() => setView("editor")}
-            className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors",
-              view === "editor"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Code size={16} />
-            Code
-          </button>
-          <button
-            onClick={() => setView("assets")}
-            className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors",
-              view === "assets"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <ImageIcon size={16} />
-            Assets
-          </button>
+            <Tabs.ListContainer>
+              <Tabs.List>
+                <Tabs.Tab id="preview">
+                  <div className="flex items-center gap-2 px-2">
+                    <Play size={14} />
+                    <span>Preview</span>
+                    <Tabs.Indicator />
+                  </div>
+                </Tabs.Tab>
+                <Tabs.Tab id="editor">
+                  <div className="flex items-center gap-2 px-2">
+                    <Code size={14} />
+                    <span>Code</span>
+                    <Tabs.Indicator />
+                  </div>
+                </Tabs.Tab>
+                <Tabs.Tab id="assets">
+                  <div className="flex items-center gap-2 px-2">
+                    <ImageIcon size={14} />
+                    <span>Assets</span>
+                    <Tabs.Indicator />
+                  </div>
+                </Tabs.Tab>
+              </Tabs.List>
+            </Tabs.ListContainer>
+          </Tabs>
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-2">
           {view === "preview" && (
             <>
-              <button
+              <ThemeToggle />
+              <IconButton
                 onClick={refresh}
                 disabled={status !== "running"}
-                className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-50"
                 title="Refresh preview"
-              >
-                <RefreshCw size={18} />
-              </button>
-              <button
-                className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"
+                size="md"
+                className="h-9 w-9"
+                icon={<RefreshCw size={18} />}
+              />
+              <IconButton
                 title="Fullscreen"
-              >
-                <Maximize2 size={18} />
-              </button>
+                size="md"
+                className="h-9 w-9"
+                icon={<Maximize2 size={18} />}
+              />
             </>
           )}
         </div>

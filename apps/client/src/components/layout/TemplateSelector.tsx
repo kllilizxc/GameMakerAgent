@@ -31,7 +31,7 @@ export function TemplateSelector() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[400px] overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[400px] overflow-y-auto scrollbar-none">
                     {templates.map((template) => (
                         <button
                             key={template.id}

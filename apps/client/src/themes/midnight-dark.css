@@ -1,0 +1,40 @@
+/*
+ * HeroUI Theme Customization
+ * Add this to your global.css after importing @heroui/styles
+ * Only includes base variables from variables.css
+ * @see https://v3.heroui.com/docs/react/getting-started/theming
+ */
+
+[data-theme="midnight-dark"] {
+    color-scheme: dark;
+    --accent: oklch(62.04% 0.1950 286.95);
+    --accent-foreground: oklch(99.11% 0 0);
+    --background: oklch(12.00% 0.0185 286.95);
+    --border: oklch(28.00% 0.0185 286.95);
+    --danger: oklch(59.40% 0.2040 28.60);
+    --danger-foreground: oklch(99.11% 0 0);
+    --default: oklch(27.40% 0.0185 286.95);
+    --default-foreground: oklch(99.11% 0 0);
+    --field-background: oklch(21.03% 0.0370 286.95);
+    --field-foreground: oklch(99.11% 0.0185 286.95);
+    --field-placeholder: oklch(70.50% 0.0370 286.95);
+    --focus: oklch(62.04% 0.1950 286.95);
+    --foreground: oklch(99.11% 0.0185 286.95);
+    --muted: oklch(70.50% 0.0370 286.95);
+    --overlay: oklch(21.03% 0.0370 286.95);
+    --overlay-foreground: oklch(99.11% 0.0185 286.95);
+    --scrollbar: oklch(70.50% 0.0185 286.95);
+    --segment: oklch(39.64% 0.0185 286.95);
+    --segment-foreground: oklch(99.11% 0.0185 286.95);
+    --separator: oklch(25.00% 0.0185 286.95);
+    --success: oklch(73.29% 0.2007 154.78);
+    --success-foreground: oklch(21.03% 0.0059 154.78);
+    --surface: oklch(21.03% 0.0370 286.95);
+    --surface-foreground: oklch(99.11% 0.0185 286.95);
+    --surface-secondary: oklch(25.70% 0.0277 286.95);
+    --surface-secondary-foreground: oklch(99.11% 0.0185 286.95);
+    --surface-tertiary: oklch(27.21% 0.0277 286.95);
+    --surface-tertiary-foreground: oklch(99.11% 0.0185 286.95);
+    --warning: oklch(82.03% 0.1439 80.31);
+    --warning-foreground: oklch(21.03% 0.0059 80.31);
+}

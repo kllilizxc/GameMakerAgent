@@ -2,7 +2,6 @@ import { useEffect } from "react"
 import { AppShell } from "@/components/layout/AppShell"
 import { TemplateSelector } from "@/components/layout/TemplateSelector"
 import { useSessionStore } from "@/stores/session"
-import { useThemeStore } from "@/stores/theme"
 import { useSettingsStore } from "@/stores/settings"
 import { Routes, Route, Navigate, useParams } from "react-router-dom"
 
@@ -24,15 +23,13 @@ function SessionLayout() {
 export function App() {
   const fetchTemplates = useSessionStore((s) => s.fetchTemplates)
   const loadHistory = useSessionStore((s) => s.loadHistory)
-  const loadTheme = useThemeStore((s) => s.loadTheme)
   const fetchModels = useSettingsStore((s) => s.fetchModels)
 
-  // Load theme, history, and models on mount
+  // Load history and models on mount
   useEffect(() => {
-    loadTheme()
     loadHistory()
     fetchModels()
-  }, [loadTheme, loadHistory, fetchModels])
+  }, [loadHistory, fetchModels])
 
   // Fetch templates on mount
   useEffect(() => {

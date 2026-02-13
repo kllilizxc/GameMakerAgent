@@ -118,10 +118,10 @@ export function AppShell() {
       {/* Sidebar/PromptPanel Container (Desktop) */}
       <aside
         className={cn(
-          "transition-all duration-500 ease-in-out flex-shrink-0 flex flex-col z-50 overflow-hidden",
+          "transition-all duration-500 rounded-r-[16px] ease-in-out flex-shrink-0 flex flex-col z-50 overflow-hidden shadow-lg",
           (layoutMode === 'mobile' || isHiding || isEntering)
-            ? "w-0 border-r-0"
-            : "w-80 border-r border-border"
+            ? "w-0"
+            : "w-80"
         )}
       >
         {layoutMode === 'desktop' && (
@@ -137,7 +137,7 @@ export function AppShell() {
       </aside>
 
       {/* Main workspace area */}
-      <main className="flex-1 flex flex-col min-w-0 relative">
+      <main className="flex-1 flex flex-col min-w-0 relative bg-background">
         <WorkspaceArea />
 
         {/* Mobile Prompt Panel */}
