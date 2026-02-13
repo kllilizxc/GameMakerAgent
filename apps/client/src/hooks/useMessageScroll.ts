@@ -8,6 +8,7 @@ interface UseMessageScrollOptions {
     onLoadMore: () => void
     hasMore: boolean
     isLoadingMore: boolean
+    expanded: boolean
 }
 
 interface UseMessageScrollReturn {
@@ -71,6 +72,7 @@ export function useMessageScroll({
     onLoadMore,
     hasMore,
     isLoadingMore,
+    expanded
 }: UseMessageScrollOptions): UseMessageScrollReturn {
     const scrollContainerRef = useRef<HTMLDivElement | null>(null)
     const contentRef = useRef<HTMLDivElement | null>(null)
@@ -124,6 +126,12 @@ export function useMessageScroll({
             }, SCROLL_THROTTLE_MS),
         [hasMore, isLoadingMore, onLoadMore]
     )
+
+    useEffect(() => {
+        if (expanded) {
+            scrollToBottom()
+        }
+    }, [expanded])
 
     // Cleanup throttle on unmount
     useEffect(() => {

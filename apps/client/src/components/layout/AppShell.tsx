@@ -142,7 +142,7 @@ export function AppShell() {
 
         {/* Mobile: Bottom prompt panel */}
         {isMobile && (
-          <div className="absolute bottom-0 left-0 right-0 safe-bottom">
+          <div className="absolute bottom-0 left-0 right-0 safe-bottom z-50">
             <PromptPanel mobile />
           </div>
         )}
