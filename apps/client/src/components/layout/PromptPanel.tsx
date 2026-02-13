@@ -57,7 +57,7 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
   return (
     <div
       className={cn(
-        "flex flex-col transition-all duration-300 ease-in-out bg-gradient-to-b from-surface via-background to-surface",
+        "flex flex-col transition-all duration-300 ease-in-out bg-gradient-to-b from-surface-tertiary via-surface-secondary to-surface",
         mobile
           ? "shadow-lg rounded-t-lg overflow-hidden h-auto"
           : "h-full"

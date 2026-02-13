@@ -53,6 +53,10 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
+  canvas {
+    border: 0;
+  }
+
   /* Custom Scrollbar */
   ::-webkit-scrollbar {
     width: 10px;
