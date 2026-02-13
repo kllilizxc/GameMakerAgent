@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSessionStore } from "@/stores/session"
 import { usePromptSubmit } from "@/hooks/usePromptSubmit"
 import { PromptHeader } from "@/components/prompt/PromptHeader"
@@ -14,6 +14,16 @@ interface PromptPanelProps {
 
 export function PromptPanel({ mobile }: PromptPanelProps) {
   const [expanded, setExpanded] = useState(!mobile)
+
+  // Sync expanded state when screen size changes
+  useEffect(() => {
+    if (!mobile) {
+      setExpanded(true)
+    } else {
+      // Optional: collapse when switching TO mobile
+      // setExpanded(false)
+    }
+  }, [mobile])
   const {
     status,
     messages,
@@ -53,7 +63,12 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
       )}
     >
       {/* Desktop Header */}
-      {!mobile && <PromptHeader />}
+      <div className={cn(
+        "transition-all duration-500 ease-in-out overflow-hidden",
+        mobile ? "h-0 opacity-0" : "h-auto opacity-100"
+      )}>
+        <PromptHeader />
+      </div>
 
       {/* Mobile Toggle Handle */}
       {mobile && (
@@ -71,9 +86,9 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
       {/* Messages Area - Scrollable */}
       <div
         className={cn(
-          "overflow-y-auto overflow-x-hidden custom-scrollbar transition-all duration-300 ease-in-out",
+          "overflow-y-auto overflow-x-hidden custom-scrollbar transition-[height] duration-300 ease-in-out",
           mobile ? "px-4" : "p-4 flex-1",
-          mobile && (expanded ? "h-[40vh] opacity-100 py-2" : "h-0 opacity-0 pointer-events-none p-0")
+          mobile && (expanded ? "h-[40vh] py-2" : "h-0 pointer-events-none p-0")
         )}
         ref={scrollContainerRef}
       >

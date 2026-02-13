@@ -1,13 +1,14 @@
-import { useState, useRef, useEffect } from "react"
+import { useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { PromptPanel } from "./PromptPanel"
 import { WorkspaceArea } from "./WorkspaceArea"
 import { useWebContainer } from "@/hooks/useWebContainer"
 import { useFilesStore } from "@/stores/files"
 import { usePreviewStore } from "@/stores/preview"
+import { usePromptPanelAnimation } from "@/hooks/usePromptPanelAnimation"
 
 export function AppShell() {
-  const [isMobile, setIsMobile] = useState(false)
+  const { layoutMode, isHiding, isEntering } = usePromptPanelAnimation()
   const files = useFilesStore((s) => s.files)
   const wcStatus = usePreviewStore((s) => s.status)
   const hasBooted = useRef(false)
@@ -112,38 +113,42 @@ export function AppShell() {
     syncFiles()
   }, [files, isWcReady, boot, writeFiles, installDeps, startDevServer, applyFilePatch])
 
-  // Check for mobile on mount and resize
-  if (typeof window !== "undefined") {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768)
-    if (!isMobile && window.innerWidth < 768) checkMobile()
-    window.addEventListener("resize", checkMobile)
-  }
-
   return (
-    <div
-      className={cn(
-        "h-dvh w-full flex",
-        isMobile ? "flex-col" : "flex-row"
-      )}
-    >
-      {/* Loading overlay */}
-      {/* <LoadingOverlay /> */}
-
-      {/* Desktop: Left panel | Mobile: rendered at bottom */}
-      {!isMobile && (
-        <aside className="w-80 border-r border-border flex-shrink-0 flex flex-col">
-          <PromptPanel />
-        </aside>
-      )}
+    <div className="h-dvh w-full flex flex-row overflow-hidden relative">
+      {/* Sidebar/PromptPanel Container (Desktop) */}
+      <aside
+        className={cn(
+          "transition-all duration-500 ease-in-out flex-shrink-0 flex flex-col z-50 overflow-hidden",
+          (layoutMode === 'mobile' || isHiding || isEntering)
+            ? "w-0 border-r-0"
+            : "w-80 border-r border-border"
+        )}
+      >
+        {layoutMode === 'desktop' && (
+          <div
+            className={cn(
+              "transition-all duration-500 ease-in-out h-full flex flex-col w-80",
+              (isHiding || isEntering) ? "-translate-x-full" : "translate-x-0"
+            )}
+          >
+            <PromptPanel mobile={false} />
+          </div>
+        )}
+      </aside>
 
       {/* Main workspace area */}
       <main className="flex-1 flex flex-col min-w-0 relative">
         <WorkspaceArea />
 
-        {/* Mobile: Bottom prompt panel */}
-        {isMobile && (
-          <div className="absolute bottom-0 left-0 right-0 safe-bottom z-50">
-            <PromptPanel mobile />
+        {/* Mobile Prompt Panel */}
+        {layoutMode === 'mobile' && (
+          <div
+            className={cn(
+              "fixed bottom-0 left-0 right-0 h-auto max-h-[85vh] bg-background border-t border-border rounded-t-xl shadow-2xl z-50 safe-bottom transition-all duration-500 ease-in-out",
+              (isHiding || isEntering) ? "translate-y-full" : "translate-y-0"
+            )}
+          >
+            <PromptPanel mobile={true} />
           </div>
         )}
       </main>
