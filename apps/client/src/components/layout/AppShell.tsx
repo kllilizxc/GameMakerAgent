@@ -6,6 +6,7 @@ import { useWebContainer } from "@/hooks/useWebContainer"
 import { useFilesStore } from "@/stores/files"
 import { usePreviewStore } from "@/stores/preview"
 import { usePromptPanelAnimation } from "@/hooks/usePromptPanelAnimation"
+import { useResizable } from "@/hooks/useResizable"
 
 export function AppShell() {
   const { layoutMode, isHiding, isEntering } = usePromptPanelAnimation()
@@ -113,31 +114,58 @@ export function AppShell() {
     syncFiles()
   }, [files, isWcReady, boot, writeFiles, installDeps, startDevServer, applyFilePatch])
 
+  // Sidebar resize logic
+  const { width: sidebarWidth, isResizing, startResizing } = useResizable({
+    initialWidth: 320,
+    minWidth: 260,
+    maxWidth: 600,
+  })
+
+  const sidebarRef = useRef<HTMLElement>(null)
+
   return (
     <div className="h-dvh w-full flex flex-row overflow-hidden relative">
       {/* Sidebar/PromptPanel Container (Desktop) */}
       <aside
+        ref={sidebarRef}
         className={cn(
-          "transition-all duration-500 rounded-r-[16px] ease-in-out flex-shrink-0 flex flex-col z-50 overflow-hidden shadow-lg",
-          (layoutMode === 'mobile' || isHiding || isEntering)
-            ? "w-0"
-            : "w-80"
+          "rounded-r-[16px] ease-in-out flex-shrink-0 flex flex-col z-50 overflow-visible shadow-lg relative",
+          isResizing ? "transition-none duration-0" : "transition-all duration-300",
+          (isHiding || isEntering) ? "-translate-x-full" : "translate-x-0",
+          (layoutMode === 'mobile')
+            ? "w-0 border-r-0"
+            : "border-r border-border" // Width handled by style
         )}
       >
         {layoutMode === 'desktop' && (
-          <div
-            className={cn(
-              "transition-all duration-500 ease-in-out h-full flex flex-col w-80",
-              (isHiding || isEntering) ? "-translate-x-full" : "translate-x-0"
-            )}
-          >
-            <PromptPanel mobile={false} />
-          </div>
+          <>
+            <div
+              className={cn(
+                "h-full flex flex-col"
+              )}
+              style={{ width: sidebarWidth }}
+            >
+              <PromptPanel mobile={false} />
+            </div>
+
+            {/* Resize Handle */}
+            <div
+              className={cn(
+                "absolute top-[200px] -right-[8px] bottom-0 w-[16px] h-[640px] rounded-[8px] bg-transparent hover:bg-border cursor-col-resize z-50 transition-colors",
+              )}
+              onMouseDown={startResizing}
+            />
+          </>
         )}
       </aside>
 
       {/* Main workspace area */}
-      <main className="flex-1 flex flex-col min-w-0 relative bg-background">
+      <main
+        className={cn(
+          "flex-1 flex flex-col min-w-0 relative bg-background",
+          isResizing && "pointer-events-none select-none" // Prevent iframe capture during resize
+        )}
+      >
         <WorkspaceArea />
 
         {/* Mobile Prompt Panel */}

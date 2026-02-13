@@ -57,7 +57,7 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
   return (
     <div
       className={cn(
-        "flex flex-col transition-all duration-300 ease-in-out bg-gradient-to-b from-surface-tertiary via-surface-secondary to-surface",
+        "flex flex-col bg-gradient-to-b from-surface-tertiary via-surface-secondary to-surface rounded-r-[16px]",
         mobile
           ? "shadow-lg rounded-t-lg overflow-hidden h-auto"
           : "h-full"
@@ -65,7 +65,7 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
     >
       {/* Desktop Header */}
       <div className={cn(
-        "transition-all duration-500 ease-in-out overflow-hidden",
+        "overflow-hidden",
         mobile ? "h-0 opacity-0" : "h-auto opacity-100"
       )}>
         <PromptHeader />
@@ -87,7 +87,7 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
       {/* Messages Area - Scrollable */}
       <ScrollShadow
         className={cn(
-          "overflow-y-auto overflow-x-hidden custom-scrollbar transition-[height] duration-300 ease-in-out",
+          "overflow-y-auto overflow-x-hidden custom-scrollbar",
           mobile ? "px-4" : "p-4 flex-1",
           mobile && (expanded ? "h-[40vh] py-2" : "h-0 pointer-events-none p-0")
         )}

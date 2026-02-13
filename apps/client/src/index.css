@@ -44,17 +44,13 @@
     --color-primary-foreground: var(--accent-foreground);
     --color-secondary: var(--default);
     --shadow-color: var(--border);
-    --code-background: var(--border);
+    --code-background: var(--segment);
   }
 
   body {
     background-color: var(--background);
     color: var(--foreground);
     font-feature-settings: "rlig" 1, "calt" 1;
-  }
-
-  canvas {
-    border: 0;
   }
 
   /* Custom Scrollbar */

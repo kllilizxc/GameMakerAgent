@@ -5,6 +5,7 @@ import { FormEvent, useRef, useEffect, useState, ChangeEvent } from "react"
 import { validateImage, resizeImage, processImageUrl } from "@/lib/image-utils"
 import { useError } from "@/hooks/useError"
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown"
+import { IconButton } from "../ui/IconButton"
 
 interface PromptInputProps {
   value: string
@@ -245,15 +246,7 @@ export function PromptInput({
           {/* Left group: Plus, Fast, Model */}
           <div className="flex items-center gap-0.5">
             {/* Plus / Attach button */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={disabled || isLoading}
-              className="p-2 text-muted-foreground hover:text-foreground rounded-lg transition-colors"
-              title="Attach image"
-            >
-              <Plus size={18} strokeWidth={2} />
-            </button>
+            <IconButton size="sm" rounded icon={<Plus size={18} strokeWidth={2} />} onClick={() => fileInputRef.current?.click()} disabled={disabled || isLoading} />
 
             {/* Model selector dropdown */}
             <Dropdown
@@ -263,7 +256,7 @@ export function PromptInput({
               placement="top"
               dark
               trigger={
-                <div className="flex items-center gap-1 px-2 py-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground rounded-lg transition-colors outline-none">
+                <div className="flex items-center gap-1 px-2 py-1.5 text-[13px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground rounded-lg transition-colors outline-none">
                   <ChevronUp size={12} />
                   <span>{activeModelName}</span>
                 </div>
@@ -274,13 +267,7 @@ export function PromptInput({
           {/* Right group: Mic, Submit/Stop */}
           <div className="flex items-center gap-1">
             {/* Voice input */}
-            <button
-              disabled
-              type="button"
-              className="p-2 text-muted-foreground hover:text-foreground rounded-lg transition-colors"
-            >
-              <Mic size={18} />
-            </button>
+            <IconButton size="sm" icon={<Mic size={18} />} disabled />
 
             {/* Submit / Interrupt */}
             {isLoading ? (

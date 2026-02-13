@@ -36,7 +36,7 @@ export function MessageItem({ message }: MessageItemProps) {
 
   return (
     <div className={cn("message-item group relative flex flex-col gap-2", isUser ? "items-end" : "items-start")}>
-      <div className={cn("flex flex-col gap-2 w-full", isUser ? "items-end" : "items-start")}>
+      <div className={cn("flex flex-col gap-2 w-full overflow-x-auto", isUser ? "items-end" : "items-start")}>
         {/* Main content block: metadata and text parts */}
         <div className={bubbleClass}>
           {message.metadata?.summary && (

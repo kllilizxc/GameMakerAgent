@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useSessionStore } from "@/stores/session"
 import { ChevronLeft } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { IconButton } from "../ui/IconButton"
 
 interface PromptHeaderProps {
   title?: string
@@ -47,16 +48,17 @@ export function PromptHeader({
   return (
     <>
       <div className="p-4 flex items-center gap-4">
-        <button
+        <IconButton
+          icon={<ChevronLeft size={20} />}
+          variant="ghost"
+          rounded
+          size="md"
           onClick={() => {
             leaveSession()
             navigate("/templates")
           }}
-          className="p-2 -ml-2 text-primary hover:text-primary-foreground hover:bg-primary rounded-lg transition-colors"
           title="Back to Templates"
-        >
-          <ChevronLeft size={20} />
-        </button>
+        />
         <div className="flex-1">
           {isEditing ? (
             <input

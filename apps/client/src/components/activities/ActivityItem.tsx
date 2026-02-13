@@ -29,7 +29,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     (activity.type === "text" && activity.data.text && activity.data.text.length > 60)
 
   return (
-    <div className="flex items-start gap-2 p-2 bg-secondary/50 rounded text-xs text-muted-foreground">
+    <div className="flex items-start gap-2 p-2 bg-overlay rounded text-xs text-muted-foreground">
       {activity.type === "tool" && (
         <>
           <Wrench size={14} className="mt-0.5 flex-shrink-0 text-blue-500" />

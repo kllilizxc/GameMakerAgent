@@ -68,12 +68,6 @@ export function WorkspaceArea() {
                 className="h-9 w-9"
                 icon={<RefreshCw size={18} />}
               />
-              <IconButton
-                title="Fullscreen"
-                size="md"
-                className="h-9 w-9"
-                icon={<Maximize2 size={18} />}
-              />
             </>
           )}
         </div>
