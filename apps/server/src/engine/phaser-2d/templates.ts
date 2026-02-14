@@ -1150,7 +1150,7 @@ const commonFiles = {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #1a1a2e; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    canvas { display: block; border: 4px solid #2d2d44; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+    canvas { display: block; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
   </style>
 </head>
 <body>

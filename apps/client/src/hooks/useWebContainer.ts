@@ -17,6 +17,11 @@ export async function getWebContainer(): Promise<WebContainer> {
   return webcontainerInstance
 }
 
+// Eagerly start booting as soon as the module is imported.
+// This runs in parallel with React rendering and file loading,
+// shaving ~2-3s off the perceived startup time.
+getWebContainer()
+
 export function useWebContainer() {
   const [isReady, setIsReady] = useState(false)
   const serverProcessRef = useRef<{ kill: () => void } | null>(null)
@@ -74,30 +79,41 @@ export function useWebContainer() {
     if (!wc) return false
 
     setStatus("installing")
-    addLog("log", "Installing dependencies...")
 
-    const installProcess = await wc.spawn("npm", ["install"])
-    installProcessRef.current = installProcess
+    // Try npm ci first (fast, lockfile-based), fall back to npm install
+    const strategies = [
+      { cmd: "ci", args: ["ci"], label: "npm ci" },
+      { cmd: "install", args: ["install", "--prefer-offline"], label: "npm install --prefer-offline" },
+    ]
 
-    installProcess.output.pipeTo(
-      new WritableStream({
-        write(data) {
-          addLog("log", data)
-        },
-      })
-    )
+    for (const { args, label } of strategies) {
+      addLog("log", `Running ${label}...`)
 
-    const exitCode = await installProcess.exit
-    installProcessRef.current = null
+      const installProcess = await wc.spawn("npm", args)
+      installProcessRef.current = installProcess
 
-    if (exitCode !== 0) {
-      setError("Failed to install dependencies")
-      addLog("error", `npm install failed with exit code ${exitCode}`)
-      return false
+      installProcess.output.pipeTo(
+        new WritableStream({
+          write(data) {
+            addLog("log", data)
+          },
+        })
+      )
+
+      const exitCode = await installProcess.exit
+      installProcessRef.current = null
+
+      if (exitCode === 0) {
+        addLog("log", "Dependencies installed")
+        return true
+      }
+
+      addLog("log", `${label} failed (exit ${exitCode}), trying next strategy...`)
     }
 
-    addLog("log", "Dependencies installed")
-    return true
+    setError("Failed to install dependencies")
+    addLog("error", "All install strategies failed")
+    return false
   }, [setStatus, setError, addLog])
 
   const startDevServer = useCallback(async () => {

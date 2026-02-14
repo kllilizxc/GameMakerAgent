@@ -66,14 +66,14 @@ export function PromptInput({
     }
   }, [attachments])
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       if (canSubmit) {
         handleSubmit(e)
       }
     }
-  }, [canSubmit])
+  }
 
   const handleFileSelect = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {

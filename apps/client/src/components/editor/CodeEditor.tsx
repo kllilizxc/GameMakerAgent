@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { memo, useEffect, useRef } from "react"
 import { EditorView, basicSetup } from "codemirror"
 import { EditorState } from "@codemirror/state"
 import { javascript } from "@codemirror/lang-javascript"
@@ -31,7 +31,7 @@ function getLanguageExtension(filename: string) {
 
 import { ImagePreview } from "./ImagePreview"
 
-export function CodeEditor() {
+export const CodeEditor = memo(function CodeEditor() {
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const selectedFile = useFilesStore((s) => s.selectedFile)
@@ -99,4 +99,4 @@ export function CodeEditor() {
       </div>
     </div>
   )
-}
+})

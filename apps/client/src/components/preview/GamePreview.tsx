@@ -47,7 +47,7 @@ export const GamePreview = memo(function GamePreview({ width = 800, height = 600
       observer.disconnect()
       cancelAnimationFrame(rafRef.current)
     }
-  }, [updateScale])
+  }, [updateScale, status, url]) // Re-run when status/url changes so observer is set up after early returns
 
   if (status === "booting" || status === "installing") {
     return (
@@ -95,7 +95,7 @@ export const GamePreview = memo(function GamePreview({ width = 800, height = 600
       >
         <iframe
           ref={iframeRef}
-          className="w-full h-full border-0 bg-white"
+          className="w-full h-full border-0"
           title="Game Preview"
           sandbox="allow-scripts allow-same-origin allow-forms"
         />
