@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { memo, useState, useCallback, useMemo } from "react"
 import { useSessionStore } from "@/stores/session"
 import { ChevronLeft } from "lucide-react"
 import { useNavigate } from "react-router-dom"
@@ -9,7 +9,7 @@ interface PromptHeaderProps {
   subtitle?: string
 }
 
-export function PromptHeader({
+export const PromptHeader = memo(function PromptHeader({
   title = "Game Agent",
   subtitle = ""
 }: PromptHeaderProps) {
@@ -22,28 +22,30 @@ export function PromptHeader({
   const leaveSession = useSessionStore((s) => s.leaveSession)
   const updateSessionName = useSessionStore((s) => s.updateSessionName)
 
-  const currentSession = history.find((h) => h.id === sessionId)
-  const displayName = currentSession?.name || title
+  const displayName = useMemo(
+    () => history.find((h) => h.id === sessionId)?.name || title,
+    [history, sessionId, title]
+  )
 
-  const handleStartEdit = () => {
+  const handleStartEdit = useCallback(() => {
     setEditValue(displayName)
     setIsEditing(true)
-  }
+  }, [displayName])
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (sessionId && editValue.trim()) {
       updateSessionName(sessionId, editValue.trim())
     }
     setIsEditing(false)
-  }
+  }, [sessionId, editValue, updateSessionName])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleSave()
     } else if (e.key === "Escape") {
       setIsEditing(false)
     }
-  }
+  }, [handleSave])
 
   return (
     <>
@@ -84,4 +86,4 @@ export function PromptHeader({
       </div>
     </>
   )
-}
+})

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from "react"
+import React, { memo, useEffect, useRef, useCallback } from "react"
 import { usePreviewStore } from "@/stores/preview"
 import { Loader2, AlertCircle, Gamepad2 } from "lucide-react"
 
@@ -7,8 +7,11 @@ interface GamePreviewProps {
   height?: number
 }
 
-export function GamePreview({ width = 800, height = 600 }: GamePreviewProps) {
-  const { url, status, error, refreshKey } = usePreviewStore()
+export const GamePreview = memo(function GamePreview({ width = 800, height = 600 }: GamePreviewProps) {
+  const url = usePreviewStore((s) => s.url)
+  const status = usePreviewStore((s) => s.status)
+  const error = usePreviewStore((s) => s.error)
+  const refreshKey = usePreviewStore((s) => s.refreshKey)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
@@ -99,4 +102,4 @@ export function GamePreview({ width = 800, height = 600 }: GamePreviewProps) {
       </div>
     </div>
   )
-}
+})

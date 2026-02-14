@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { memo, useState } from "react"
 import { cn } from "@/lib/utils"
 // Ensure icons are imported. If they don't exist in lucide-react (unlikely), I'll swap them.
 // Image, Save, X, RotateCcw, Loader2, Download are standard.
@@ -11,7 +11,7 @@ type ImageSize = "1024x1024" | "1280x720" | "720x1280" | "1216x896"
 
 import { useSessionStore } from "@/stores/session"
 
-export function AssetGenerator() {
+export const AssetGenerator = memo(function AssetGenerator() {
     const [prompt, setPrompt] = useState("")
     const [size, setSize] = useState<ImageSize>("1024x1024")
     const [type, setType] = useState<AssetType>("misc")
@@ -236,4 +236,4 @@ export function AssetGenerator() {
             </div>
         </div>
     )
-}
+})

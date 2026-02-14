@@ -151,7 +151,7 @@ export function AppShell() {
             {/* Resize Handle */}
             <div
               className={cn(
-                "absolute top-[200px] -right-[8px] bottom-0 w-[16px] h-[640px] rounded-[8px] bg-transparent hover:bg-border cursor-col-resize z-50 transition-colors",
+                "absolute top-[360px] -right-[8px] bottom-0 w-[16px] h-[320px] rounded-[8px] bg-border cursor-col-resize z-50",
               )}
               onMouseDown={startResizing}
             />

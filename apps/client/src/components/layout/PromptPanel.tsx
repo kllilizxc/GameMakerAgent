@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { memo, useState, useEffect } from "react"
 import { useSessionStore } from "@/stores/session"
 import { usePromptSubmit } from "@/hooks/usePromptSubmit"
 import { PromptHeader } from "@/components/prompt/PromptHeader"
@@ -13,7 +13,7 @@ interface PromptPanelProps {
   mobile?: boolean
 }
 
-export function PromptPanel({ mobile }: PromptPanelProps) {
+export const PromptPanel = memo(function PromptPanel({ mobile }: PromptPanelProps) {
   const [expanded, setExpanded] = useState(!mobile)
 
   // Sync expanded state when screen size changes
@@ -107,4 +107,4 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
       </div>
     </div>
   )
-}
+})

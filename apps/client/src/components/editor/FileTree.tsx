@@ -1,14 +1,17 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { useFilesStore } from "@/stores/files"
 import { File, Folder, ChevronRight, ChevronDown } from "lucide-react"
 
 export function FileTree() {
-  const { files, selectedFile, selectFile } = useFilesStore()
-  const fileList = Array.from(files.keys()).sort()
+  const files = useFilesStore((s) => s.files)
+  const selectedFile = useFilesStore((s) => s.selectedFile)
+  const selectFile = useFilesStore((s) => s.selectFile)
 
-  // Group files by directory
-  const tree = buildTree(fileList)
+  const tree = useMemo(() => {
+    const fileList = Array.from(files.keys()).sort()
+    return buildTree(fileList)
+  }, [files])
 
   return (
     <div className="py-2 text-sm select-none">

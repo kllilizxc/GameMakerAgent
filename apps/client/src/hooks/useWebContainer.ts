@@ -21,8 +21,12 @@ export function useWebContainer() {
   const [isReady, setIsReady] = useState(false)
   const serverProcessRef = useRef<{ kill: () => void } | null>(null)
   const installProcessRef = useRef<{ kill: () => void } | null>(null)
-  const { files: _files, applyPatch } = useFilesStore()
-  const { setUrl, setStatus, setError, addLog } = usePreviewStore()
+
+  // Only subscribe to actions — they are stable refs and won't cause re-renders
+  const setUrl = usePreviewStore((s) => s.setUrl)
+  const setStatus = usePreviewStore((s) => s.setStatus)
+  const setError = usePreviewStore((s) => s.setError)
+  const addLog = usePreviewStore((s) => s.addLog)
 
   const boot = useCallback(async () => {
     try {
@@ -164,13 +168,13 @@ export function useWebContainer() {
         }
 
         // Also update local store
-        applyPatch(patch)
+        useFilesStore.getState().applyPatch(patch)
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to apply patch"
         addLog("error", message)
       }
     },
-    [applyPatch, addLog]
+    [addLog]
   )
 
   const teardown = useCallback(() => {

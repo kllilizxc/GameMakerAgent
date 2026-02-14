@@ -1,11 +1,11 @@
 import { useFilesStore } from "@/stores/files"
 
 export function ImagePreview() {
-    const { selectedFile, getFileEntry } = useFilesStore()
+    const selectedFile = useFilesStore((s) => s.selectedFile)
 
     if (!selectedFile) return null
 
-    const entry = getFileEntry(selectedFile)
+    const entry = useFilesStore.getState().getFileEntry(selectedFile)
     if (!entry) return null
 
     const isBase64 = entry.encoding === "base64"

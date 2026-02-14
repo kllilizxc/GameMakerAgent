@@ -1,26 +1,29 @@
 import { useThemeStore, availableThemes } from "@/stores/theme"
+import { memo, useMemo } from "react"
 import { Sun, Moon } from "lucide-react"
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown"
 import { cn } from "@/lib/utils"
 import { IconButton } from "@/components/ui/IconButton"
 
-export function ThemeToggle() {
-    const { theme, mode, setTheme, toggleMode } = useThemeStore()
+export const ThemeToggle = memo(function ThemeToggle() {
+    const theme = useThemeStore((s) => s.theme)
+    const mode = useThemeStore((s) => s.mode)
+    const setTheme = useThemeStore((s) => s.setTheme)
+    const toggleMode = useThemeStore((s) => s.toggleMode)
 
-    const themeOptions: DropdownOption<string>[] = availableThemes.map((t) => ({
+    const themeOptions: DropdownOption<string>[] = useMemo(() => availableThemes.map((t) => ({
         id: t.id,
         label: t.name,
-        // Using endIcon for color indicator as requested
         endIcon: (
             <span
                 className={cn(
                     "w-3 h-3 rounded-full border border-border shadow-sm",
-                    !t.color && "bg-muted" // Fallback if no color extracted
+                    !t.color && "bg-muted"
                 )}
                 style={{ backgroundColor: t.color }}
             />
         ),
-    }))
+    })), []) // availableThemes is a module-level constant
 
     return (
         <div className="flex items-center gap-2">
@@ -44,4 +47,4 @@ export function ThemeToggle() {
             />
         </div>
     )
-}
+})

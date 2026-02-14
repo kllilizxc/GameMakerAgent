@@ -34,14 +34,15 @@ import { ImagePreview } from "./ImagePreview"
 export function CodeEditor() {
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
-  const { selectedFile, getFileContent, files } = useFilesStore()
+  const selectedFile = useFilesStore((s) => s.selectedFile)
+  const files = useFilesStore((s) => s.files)
 
   const isImage = selectedFile ? isImageFile(selectedFile) : false
 
   useEffect(() => {
     if (!editorRef.current || isImage) return
 
-    const content = selectedFile ? getFileContent(selectedFile) || "" : ""
+    const content = selectedFile ? (useFilesStore.getState().getFileContent(selectedFile) || "") : ""
     const langExt = selectedFile ? getLanguageExtension(selectedFile) : []
 
     const state = EditorState.create({
