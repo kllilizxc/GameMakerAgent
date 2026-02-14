@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect } from "react"
+import { memo, useRef, useLayoutEffect } from "react"
 import { ActivityItem } from "./ActivityItem"
 import type { Activity } from "@/types/session"
 
@@ -6,7 +6,7 @@ interface ActivityGroupProps {
     activities: Activity[]
 }
 
-export function ActivityGroup({ activities }: ActivityGroupProps) {
+export const ActivityGroup = memo(function ActivityGroup({ activities }: ActivityGroupProps) {
     const containerRef = useRef<HTMLDivElement>(null)
 
     useLayoutEffect(() => {
@@ -25,4 +25,4 @@ export function ActivityGroup({ activities }: ActivityGroupProps) {
             ))}
         </div>
     )
-}
+})

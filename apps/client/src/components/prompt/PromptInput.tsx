@@ -1,7 +1,7 @@
 import { Square, X, Plus, Mic, ArrowRight, ChevronUp } from "lucide-react"
 import { useSessionStore } from "@/stores/session"
 import { useSettingsStore } from "@/stores/settings"
-import { FormEvent, useRef, useEffect, useState, ChangeEvent } from "react"
+import { FormEvent, useRef, useEffect, useState, useCallback, useMemo, ChangeEvent } from "react"
 import { validateImage, resizeImage, processImageUrl } from "@/lib/image-utils"
 import { useError } from "@/hooks/useError"
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown"
@@ -37,7 +37,10 @@ export function PromptInput({
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
 
-  const { models, activeModel, fetchModels, setActiveModel } = useSettingsStore()
+  const models = useSettingsStore((s) => s.models)
+  const activeModel = useSettingsStore((s) => s.activeModel)
+  const fetchModels = useSettingsStore((s) => s.fetchModels)
+  const setActiveModel = useSettingsStore((s) => s.setActiveModel)
   const { error: showError } = useError()
 
   const canSubmit = (value.trim().length > 0 || attachments.length > 0) && !isLoading && !disabled && !isProcessing
@@ -63,16 +66,16 @@ export function PromptInput({
     }
   }, [attachments])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       if (canSubmit) {
         handleSubmit(e)
       }
     }
-  }
+  }, [canSubmit])
 
-  const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setIsProcessing(true)
       const newAttachments: Attachment[] = []
@@ -109,16 +112,16 @@ export function PromptInput({
         }
       }
     }
-  }
+  }, [showError])
 
-  const removeAttachment = (index: number) => {
+  const removeAttachment = useCallback((index: number) => {
     setAttachments(prev => {
       const newAttachments = [...prev]
       URL.revokeObjectURL(newAttachments[index].preview)
       newAttachments.splice(index, 1)
       return newAttachments
     })
-  }
+  }, [])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -146,7 +149,7 @@ export function PromptInput({
     }
   }
 
-  const handleModelChange = (modelId: string) => {
+  const handleModelChange = useCallback((modelId: string) => {
     if (modelId && modelId !== activeModel) {
       setActiveModel(modelId)
       // Persist to backend
@@ -156,17 +159,24 @@ export function PromptInput({
         body: JSON.stringify({ activeModel: modelId }),
       }).catch((err) => console.error("Failed to save model setting:", err))
     }
-  }
+  }, [activeModel, setActiveModel])
 
-  const activeModelName = models.find(m => m.id === activeModel)?.name || "Select Model"
+  const activeModelName = useMemo(
+    () => models.find(m => m.id === activeModel)?.name || "Select Model",
+    [models, activeModel]
+  )
 
-  const modelOptions: DropdownOption[] = models.map((model) => ({
-    id: model.id,
-    label: model.name,
-  }))
+  const modelOptions: DropdownOption[] = useMemo(
+    () => models.map((model) => ({
+      id: model.id,
+      label: model.name,
+    })),
+    [models]
+  )
 
   // Handle draft attachments from session store (e.g. on rewind)
-  const { draftAttachments, setDraftAttachments } = useSessionStore()
+  const draftAttachments = useSessionStore((s) => s.draftAttachments)
+  const setDraftAttachments = useSessionStore((s) => s.setDraftAttachments)
   useEffect(() => {
     if (draftAttachments && draftAttachments.length > 0) {
       setIsProcessing(true)

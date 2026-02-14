@@ -12,8 +12,8 @@ interface UseMessageScrollOptions {
 }
 
 interface UseMessageScrollReturn {
-    scrollContainerRef: React.RefObject<HTMLDivElement>
-    contentRef: React.RefObject<HTMLDivElement>
+    scrollContainerRef: React.RefObject<HTMLDivElement | null>
+    contentRef: React.RefObject<HTMLDivElement | null>
     scrollToBottom: (behavior?: ScrollBehavior) => void
     isAtBottom: boolean
 }
@@ -79,6 +79,7 @@ export function useMessageScroll({
 
     // Scroll state
     const [isAtBottom, setIsAtBottom] = useState(true)
+    const isAtBottomRef = useRef(true)
 
     // Refs for tracking scroll position
     const prevScrollBottomRef = useRef(0)
@@ -117,7 +118,9 @@ export function useMessageScroll({
 
                 // Check if at bottom (within threshold)
                 const distanceFromBottom = scrollHeight - clientHeight - scrollTop
-                setIsAtBottom(distanceFromBottom < BOTTOM_THRESHOLD)
+                const atBottom = distanceFromBottom < BOTTOM_THRESHOLD
+                setIsAtBottom(atBottom)
+                isAtBottomRef.current = atBottom
 
                 // Trigger load more when near top
                 if (scrollTop < LOAD_MORE_THRESHOLD && hasMore && !isLoadingMore) {
@@ -197,8 +200,8 @@ export function useMessageScroll({
         if (!container) return
 
         const observer = new ResizeObserver(() => {
-            // Only auto-scroll if at bottom
-            if (isAtBottom) {
+            // Use ref to avoid re-creating observer when isAtBottom changes
+            if (isAtBottomRef.current) {
                 scrollToBottom("instant")
             }
         })
@@ -209,7 +212,7 @@ export function useMessageScroll({
         }
 
         return () => observer.disconnect()
-    }, [isAtBottom, scrollToBottom])
+    }, [scrollToBottom]) // scrollToBottom is stable (empty deps)
 
     return {
         scrollContainerRef,

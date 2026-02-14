@@ -20,9 +20,7 @@ export function MessageList({ messages }: MessageListProps) {
   // Timeline Management - merges messages and activities
   const timeline = useMessageTimeline(messages, activities)
 
-  const validMessages = messages.filter((msg) => msg.content.trim().length > 0)
-
-  if (validMessages.length === 0 && activities.length === 0) {
+  if (timeline.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-8">
         <p>No messages yet.</p>

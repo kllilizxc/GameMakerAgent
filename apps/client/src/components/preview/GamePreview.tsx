@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react"
+import React, { useEffect, useRef, useCallback } from "react"
 import { usePreviewStore } from "@/stores/preview"
 import { Loader2, AlertCircle, Gamepad2 } from "lucide-react"
 
@@ -19,31 +19,32 @@ export function GamePreview({ width = 800, height = 600 }: GamePreviewProps) {
 
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = React.useState(1)
+  const rafRef = useRef<number>(0)
+
+  const updateScale = useCallback(() => {
+    if (!containerRef.current) return
+    const { width: containerWidth, height: containerHeight } = containerRef.current.getBoundingClientRect()
+    const scaleX = containerWidth / width
+    const scaleY = containerHeight / height
+    setScale(Math.min(scaleX, scaleY))
+  }, [width, height])
 
   useEffect(() => {
-    if (!containerRef.current) return
+    const el = containerRef.current
+    if (!el) return
 
-    const updateScale = () => {
-      if (!containerRef.current) return
-      const container = containerRef.current
-      const { width: containerWidth, height: containerHeight } = container.getBoundingClientRect()
-
-      // Calculate scale to fit
-      const scaleX = containerWidth / width
-      const scaleY = containerHeight / height
-      const newScale = Math.min(scaleX, scaleY)
-
-      setScale(newScale)
-    }
-
-    const observer = new ResizeObserver(updateScale)
-    observer.observe(containerRef.current)
-
-    // Initial calculation
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(updateScale)
+    })
+    observer.observe(el)
     updateScale()
 
-    return () => observer.disconnect()
-  }, [width, height, containerRef.current])
+    return () => {
+      observer.disconnect()
+      cancelAnimationFrame(rafRef.current)
+    }
+  }, [updateScale])
 
   if (status === "booting" || status === "installing") {
     return (

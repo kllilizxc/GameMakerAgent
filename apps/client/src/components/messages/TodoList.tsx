@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils"
-import { useState } from "react"
+import { memo, useState } from "react"
 import { Check } from "lucide-react"
 
 interface TodoListProps {
     todos: Array<{ id: string; content: string; status: string; priority?: string }>
 }
 
-export function TodoList({ todos }: TodoListProps) {
+export const TodoList = memo(function TodoList({ todos }: TodoListProps) {
     const [isOpen, setIsOpen] = useState(true)
 
     if (!todos || todos.length === 0) return null
@@ -72,4 +72,4 @@ export function TodoList({ todos }: TodoListProps) {
             </div>
         </div>
     )
-}
+})

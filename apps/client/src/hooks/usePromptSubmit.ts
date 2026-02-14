@@ -11,7 +11,8 @@ interface UsePromptSubmitOptions {
  */
 export function usePromptSubmit({ onSubmit, isDisabled = false }: UsePromptSubmitOptions) {
   const [input, setInput] = useState("")
-  const { draftPrompt, setDraftPrompt } = useSessionStore()
+  const draftPrompt = useSessionStore((s) => s.draftPrompt)
+  const setDraftPrompt = useSessionStore((s) => s.setDraftPrompt)
 
   useEffect(() => {
     if (draftPrompt) {

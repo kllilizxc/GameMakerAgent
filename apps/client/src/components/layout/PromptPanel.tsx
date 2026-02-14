@@ -25,16 +25,14 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
       // setExpanded(false)
     }
   }, [mobile])
-  const {
-    status,
-    messages,
-    activities,
-    sendPrompt,
-    interrupt,
-    loadMoreMessages,
-    hasMoreMessages,
-    isLoadingMore,
-  } = useSessionStore()
+  const status = useSessionStore((s) => s.status)
+  const messages = useSessionStore((s) => s.messages)
+  const activities = useSessionStore((s) => s.activities)
+  const sendPrompt = useSessionStore((s) => s.sendPrompt)
+  const interrupt = useSessionStore((s) => s.interrupt)
+  const loadMoreMessages = useSessionStore((s) => s.loadMoreMessages)
+  const hasMoreMessages = useSessionStore((s) => s.hasMoreMessages)
+  const isLoadingMore = useSessionStore((s) => s.isLoadingMore)
 
   const isLoading = status === "running"
 

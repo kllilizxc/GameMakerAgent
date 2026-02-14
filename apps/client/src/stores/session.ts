@@ -249,11 +249,14 @@ export const useSessionStore = create<SessionState>()(
           const existingIndex = s.messages.findIndex((m) => m.id === textId)
 
           if (existingIndex !== -1) {
-            const messages = [...s.messages]
-            const msg = { ...messages[existingIndex] }
-            msg.content = text
-            msg.streaming = true
-            messages[existingIndex] = msg
+            // Only create a new array if the target message actually changed
+            const existing = s.messages[existingIndex]
+            if (existing.content === text && existing.streaming) {
+              return {} // No change needed
+            }
+            const messages = s.messages.map((m, i) =>
+              i === existingIndex ? { ...m, content: text, streaming: true } : m
+            )
             return {
               messages,
               streamingMessageId: textId,

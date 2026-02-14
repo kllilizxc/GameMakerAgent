@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import type { Message } from "@/types/session"
 import { useSessionStore } from "@/stores/session"
@@ -12,27 +13,43 @@ interface MessageItemProps {
   message: Message
 }
 
-export function MessageItem({ message }: MessageItemProps) {
-  const { rewind, status } = useSessionStore((state) => ({
-    rewind: state.rewind,
-    status: state.status
-  }))
-  const isRunning = status === "running"
+/** Isolated rewind button — subscribes to status independently so streaming updates don't re-render the message bubble */
+function RewindButton({ messageId }: { messageId: string }) {
+  const rewind = useSessionStore((s) => s.rewind)
+  const isRunning = useSessionStore((s) => s.status === "running")
 
+  return (
+    <button
+      onClick={() => rewind(messageId, true)}
+      disabled={isRunning}
+      className={cn(
+        "p-1 rounded-full text-xs flex items-center gap-1 transition-colors",
+        isRunning
+          ? "cursor-not-allowed opacity-50 text-muted-foreground"
+          : "bg-secondary shadow-sm border border-border"
+      )}
+      title={isRunning ? "Rewind disabled during generation" : "Rewind to this prompt"}
+    >
+      <Undo2 className="w-4 h-4 text-foreground" />
+    </button>
+  )
+}
+
+export const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
   const isUser = message.role === "user"
   const isAgent = message.role === "agent"
 
-  const bubbleClass = cn(
+  const bubbleClass = useMemo(() => cn(
     "rounded-lg py-3 text-sm w-fit max-w-full",
     isUser
       ? "bg-primary px-4 text-primary-foreground ml-8"
       : "bg-transparent prose prose-sm prose-invert max-w-none"
-  )
+  ), [isUser])
 
-  const imageBlockClass = cn(
+  const imageBlockClass = useMemo(() => cn(
     "rounded-lg overflow-hidden w-fit max-w-full",
     isUser ? "ml-8" : ""
-  )
+  ), [isUser])
 
   return (
     <div className={cn("message-item group relative flex flex-col gap-2", isUser ? "items-end" : "items-start")}>
@@ -90,23 +107,9 @@ export function MessageItem({ message }: MessageItemProps) {
       </div>
 
       <div className={cn("absolute opacity-0 group-hover:opacity-100 transition-opacity", "-top-2 -right-2")}>
-        {isUser && (
-          <button
-            onClick={() => rewind(message.id, true)}
-            disabled={isRunning}
-            className={cn(
-              "p-1 rounded-full text-xs flex items-center gap-1 transition-colors",
-              isRunning
-                ? "cursor-not-allowed opacity-50 text-muted-foreground"
-                : "bg-secondary shadow-sm border border-border"
-            )}
-            title={isRunning ? "Rewind disabled during generation" : "Rewind to this prompt"}
-          >
-            <Undo2 className="w-4 h-4 text-foreground" />
-          </button>
-        )}
+        {isUser && <RewindButton messageId={message.id} />}
       </div>
     </div>
   )
-}
+})
 

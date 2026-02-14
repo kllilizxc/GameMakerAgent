@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { memo, useState } from "react"
 import { cn } from "@/lib/utils"
-import { Code, Play, RefreshCw, Maximize2, Image as ImageIcon } from "lucide-react"
+import { Code, Play, RefreshCw, Image as ImageIcon } from "lucide-react"
 import { GamePreview } from "@/components/preview/GamePreview"
 import { CodeEditor } from "@/components/editor/CodeEditor"
 import { AssetGenerator } from "@/components/assets/AssetGenerator"
@@ -11,9 +11,10 @@ import { Tabs } from "@heroui/react"
 
 type View = "preview" | "editor" | "assets"
 
-export function WorkspaceArea() {
+export const WorkspaceArea = memo(function WorkspaceArea() {
   const [view, setView] = useState<View>("preview")
-  const { refresh, status } = usePreviewStore()
+  const refresh = usePreviewStore((s) => s.refresh)
+  const status = usePreviewStore((s) => s.status)
 
   return (
     <div className="flex flex-col h-full">
@@ -102,4 +103,4 @@ export function WorkspaceArea() {
       </div>
     </div>
   )
-}
+})
