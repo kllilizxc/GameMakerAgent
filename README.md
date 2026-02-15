@@ -69,11 +69,14 @@ Demo (I use free server so it's super slow): https://gamemakeragent-client.onren
 ### Installation
 
 ```bash
-# Clone the repository (with submodules for templates)
-git clone --recursive https://github.com/kllilizxc/GameMakerAgent.git
+# Clone the repository
+git clone https://github.com/kllilizxc/GameMakerAgent.git
 cd GameMakerAgent
 
-# Install dependencies (will also fetch submodules if missed)
+# Initialize submodules (REQUIRED for workspaces)
+git submodule update --init --recursive
+
+# Install dependencies
 bun install
 
 # Set up environment variables
