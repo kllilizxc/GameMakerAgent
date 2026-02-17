@@ -93,8 +93,11 @@ export const useSessionStore = create<SessionState>()(
               useFilesStore.getState().setSnapshot(data.snapshot.files)
             }
             if (data.messages) {
+              const messages = processLoadedMessages(data.messages.list)
+              const activities = messages.flatMap(m => m.activities || [])
               set({
-                messages: processLoadedMessages(data.messages.list),
+                messages,
+                activities,
                 hasMoreMessages: data.messages.hasMore
               })
             }
@@ -124,8 +127,11 @@ export const useSessionStore = create<SessionState>()(
               useFilesStore.getState().setSnapshot(data.snapshot.files)
             }
             if (data.messages) {
+              const messages = processLoadedMessages(data.messages.list)
+              const activities = messages.flatMap(m => m.activities || [])
               set({
-                messages: processLoadedMessages(data.messages.list),
+                messages,
+                activities,
                 hasMoreMessages: data.messages.hasMore
               })
             }

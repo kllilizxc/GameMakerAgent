@@ -23,7 +23,15 @@ export interface MessagePart {
     }
 }
 
-// ... existing ClientActivity interface ...
+// Copied from types/session.ts to avoid circular deps
+export interface ClientActivity {
+    id: string
+    type: "tool" | "file" | "text"
+    timestamp: number
+    data: any // Can be specific per type
+    completed?: boolean
+    callId?: string
+}
 
 /**
  * Transform OpenCode's MessageV2.WithParts[] to our client message format
@@ -72,18 +80,7 @@ export function transformMessages(ocMessages: MessageV2.WithParts[]): ClientMess
             let title = state.status === "completed" ? state.title : undefined
 
             if (!title && state.input) {
-                const input = state.input as Record<string, any>
-                if (input.path && typeof input.path === "string") {
-                    title = input.path
-                } else if (input.filePath && typeof input.filePath === "string") {
-                    title = input.filePath
-                } else if (input.command && typeof input.command === "string") {
-                    title = input.command
-                } else if (input.pattern && typeof input.pattern === "string") {
-                    title = input.pattern
-                } else if (input.url && typeof input.url === "string") {
-                    title = input.url
-                }
+                title = getToolTitle(state.input as Record<string, any>)
             }
 
             let timestamp: number
@@ -117,4 +114,27 @@ export function transformMessages(ocMessages: MessageV2.WithParts[]): ClientMess
             activities: activities.length > 0 ? activities : undefined
         }
     })
+}
+
+
+function getToolTitle(input: Record<string, any>): string | undefined {
+    if (input.path && typeof input.path === "string") {
+        return input.path
+    } else if (input.filePath && typeof input.filePath === "string") {
+        return input.filePath
+    } else if (input.command && typeof input.command === "string") {
+        return input.command
+    } else if (input.pattern && typeof input.pattern === "string") {
+        return input.pattern
+    } else if (input.url && typeof input.url === "string") {
+        return input.url
+    } else if (input.prompt && typeof input.prompt === "string") {
+        return input.prompt
+    }
+
+    if (Object.keys(input).length > 0) {
+        return JSON.stringify(input)
+    }
+
+    return undefined
 }
