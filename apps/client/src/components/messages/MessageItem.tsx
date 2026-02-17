@@ -62,7 +62,7 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
           {message.metadata?.todos && (
             <TodoList todos={message.metadata.todos} />
           )}
-          <div className={cn("flex flex-col gap-2", isUser && "prose prose-sm prose-invert max-w-none")}>
+          <div className={cn("flex flex-col gap-2", isUser && "prose prose-sm prose-invert max-w-none overflow-x-auto")}>
             {message.parts && message.parts.length > 0 ? (
               message.parts
                 .filter(part => part.type === "text")

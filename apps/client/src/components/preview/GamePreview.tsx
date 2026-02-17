@@ -20,6 +20,28 @@ export const GamePreview = memo(function GamePreview({ width = 800, height = 600
     }
   }, [url, refreshKey])
 
+  // Listen for runtime errors from the iframe (injected script)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Debug log to trace messages
+      if (event.data?.type?.startsWith('preview-')) {
+        console.log("[GamePreview] Received message:", event.data);
+      }
+
+      if (typeof event.data === "object") {
+        if (event.data?.type === "preview-error") {
+          usePreviewStore.getState().addLog("error", event.data.message)
+        } else if (event.data?.type === "preview-warn") {
+          usePreviewStore.getState().addLog("warn", event.data.message)
+        } else if (event.data?.type === "preview-log") {
+          usePreviewStore.getState().addLog("log", event.data.message)
+        }
+      }
+    }
+    window.addEventListener("message", handleMessage)
+    return () => window.removeEventListener("message", handleMessage)
+  }, [])
+
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = React.useState(1)
   const rafRef = useRef<number>(0)

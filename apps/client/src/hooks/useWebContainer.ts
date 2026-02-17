@@ -89,7 +89,13 @@ export function useWebContainer() {
     for (const { args, label } of strategies) {
       addLog("log", `Running ${label}...`)
 
-      const installProcess = await wc.spawn("npm", args)
+      const installProcess = await wc.spawn("npm", args, {
+        env: {
+          CI: "true",
+          npm_config_progress: "false",
+          TERM: "dumb",
+        },
+      })
       installProcessRef.current = installProcess
 
       installProcess.output.pipeTo(
@@ -127,7 +133,13 @@ export function useWebContainer() {
       serverProcessRef.current.kill()
     }
 
-    const serverProcess = await wc.spawn("npm", ["run", "dev"])
+    const serverProcess = await wc.spawn("npm", ["run", "dev"], {
+      env: {
+        CI: "true",
+        npm_config_progress: "false",
+        TERM: "dumb",
+      },
+    })
     serverProcessRef.current = serverProcess
 
     serverProcess.output.pipeTo(

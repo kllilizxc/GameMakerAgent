@@ -36,10 +36,16 @@ export const usePreviewStore = create<PreviewState>((set) => ({
   setError: (error) => set({ error, status: error ? "error" : "idle" }),
 
   addLog: (type, message) => {
+    // Strip ANSI escape codes
+    const cleanMessage = message.replace(
+      /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
+      ""
+    )
+
     const entry: LogEntry = {
       id: crypto.randomUUID(),
       type,
-      message,
+      message: cleanMessage,
       timestamp: Date.now(),
     }
     set((state) => ({ logs: [...state.logs.slice(-99), entry] }))
