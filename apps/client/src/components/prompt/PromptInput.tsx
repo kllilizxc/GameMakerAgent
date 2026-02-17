@@ -39,18 +39,12 @@ export function PromptInput({
 
   const models = useSettingsStore((s) => s.models)
   const activeModel = useSettingsStore((s) => s.activeModel)
-  const fetchModels = useSettingsStore((s) => s.fetchModels)
   const setActiveModel = useSettingsStore((s) => s.setActiveModel)
   const { error: showError } = useError()
 
   const canSubmit = (value.trim().length > 0 || attachments.length > 0) && !isLoading && !disabled && !isProcessing
 
-  // Fetch models on mount if not loaded
-  useEffect(() => {
-    if (models.length === 0) {
-      fetchModels()
-    }
-  }, [models.length, fetchModels])
+
 
   useEffect(() => {
     if (textareaRef.current) {

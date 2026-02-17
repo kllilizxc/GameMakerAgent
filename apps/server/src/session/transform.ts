@@ -60,7 +60,7 @@ export function transformMessages(ocMessages: MessageV2.WithParts[]): ClientMess
                         type: "ui",
                         ui: {
                             name: "selector",
-                            props: part.state.output as Record<string, any> || {}
+                            props: (part.state.output as unknown as Record<string, any>) || {}
                         }
                     })
                 }

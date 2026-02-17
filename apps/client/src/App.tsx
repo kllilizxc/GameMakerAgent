@@ -21,7 +21,6 @@ function SessionLayout() {
 }
 
 export function App() {
-  const fetchTemplates = useSessionStore((s) => s.fetchTemplates)
   const loadHistory = useSessionStore((s) => s.loadHistory)
   const fetchModels = useSettingsStore((s) => s.fetchModels)
 
@@ -31,10 +30,7 @@ export function App() {
     fetchModels()
   }, [loadHistory, fetchModels])
 
-  // Fetch templates on mount
-  useEffect(() => {
-    fetchTemplates()
-  }, [fetchTemplates])
+
 
   return (
     <Routes>

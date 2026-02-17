@@ -15,9 +15,12 @@ export function TemplateSelector() {
     const { confirm } = useConfirm()
     const navigate = useNavigate()
 
+    const fetchTemplates = useSessionStore((s) => s.fetchTemplates)
+
     useEffect(() => {
         loadHistory()
-    }, [loadHistory])
+        fetchTemplates()
+    }, [loadHistory, fetchTemplates])
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-[#09090b] text-white p-8">
