@@ -1,10 +1,10 @@
 "use client"
-
 import { useState, useCallback, useRef, createContext, useContext, ReactNode, useEffect } from "react"
+import { Button } from "@heroui/react"
 import {
     Dialog,
-    DialogContent,
     DialogHeader,
+    DialogIcon,
     DialogTitle,
     DialogDescription,
     DialogFooter,
@@ -52,8 +52,8 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
         showConfirm: true,
     })
 
-    const resolveRef = useRef<(value: boolean) => void>()
-    const timerRef = useRef<ReturnType<typeof setTimeout>>()
+    const resolveRef = useRef<(value: boolean) => void>(null)
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const open = useCallback((options: DialogOptions): Promise<boolean> => {
         // Clear any existing timer
@@ -112,38 +112,36 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
         <DialogContext.Provider value={open}>
             {children}
             <Dialog open={state.isOpen} onOpenChange={(open) => !open && handleClose()}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className={`flex items-center gap-2 ${state.titleClass || ""}`}>
-                            {state.icon}
-                            {state.title}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {state.description}
-                        </DialogDescription>
-                    </DialogHeader>
-                    {/* Only show footer if there's at least one button */}
-                    {(state.showCancel || state.showConfirm) && (
-                        <DialogFooter>
-                            {state.showCancel && (
-                                <button
-                                    onClick={handleClose}
-                                    className="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white transition-colors"
-                                >
-                                    {state.cancelText}
-                                </button>
-                            )}
-                            {state.showConfirm && (
-                                <button
-                                    onClick={handleConfirm}
-                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${state.confirmButtonClass || "bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20"}`}
-                                >
-                                    {state.confirmText}
-                                </button>
-                            )}
-                        </DialogFooter>
-                    )}
-                </DialogContent>
+                <DialogHeader>
+                    {state.icon && <DialogIcon>{state.icon}</DialogIcon>}
+                    <DialogTitle className={state.titleClass}>
+                        {state.title}
+                    </DialogTitle>
+                    <DialogDescription>
+                        {state.description}
+                    </DialogDescription>
+                </DialogHeader>
+                {(state.showCancel || state.showConfirm) && (
+                    <DialogFooter>
+                        {state.showCancel && (
+                            <Button
+                                onPress={handleClose}
+                                variant="ghost"
+                                className="text-muted-foreground hover:text-foreground"
+                            >
+                                {state.cancelText}
+                            </Button>
+                        )}
+                        {state.showConfirm && (
+                            <Button
+                                onPress={handleConfirm}
+                                className={state.confirmButtonClass}
+                            >
+                                {state.confirmText}
+                            </Button>
+                        )}
+                    </DialogFooter>
+                )}
             </Dialog>
         </DialogContext.Provider>
     )

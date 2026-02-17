@@ -23,11 +23,8 @@ export function useConfirm() {
             cancelText: options.cancelText,
             showCancel: true,
             showConfirm: true,
-            icon: isDestructive ? <AlertTriangle size={20} /> : undefined,
-            titleClass: isDestructive ? "text-red-400" : undefined,
-            confirmButtonClass: isDestructive
-                ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
-                : "bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20"
+            icon: isDestructive ? <AlertTriangle size={20} className="text-destructive" /> : undefined,
+            titleClass: isDestructive ? "text-destructive" : undefined,
         })
     }, [open])
 

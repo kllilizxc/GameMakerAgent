@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Button } from "@heroui/react"
 import { useSettingsStore } from "@/stores/settings"
 import {
     Dialog,
@@ -32,34 +33,33 @@ export function ModelSettings({ open, onOpenChange }: ModelSettingsProps) {
                 </DialogDescription>
             </DialogHeader>
 
-            <div className="flex gap-2 p-1 bg-zinc-800/50 rounded-lg mb-4">
-                <button
-                    onClick={() => setCurrentTab("select")}
-                    className={cn(
-                        "flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors",
-                        currentTab === "select"
-                            ? "bg-zinc-700 text-white shadow-sm"
-                            : "text-zinc-400 hover:text-zinc-200"
-                    )}
-                >
-                    <Settings size={14} />
-                    Select Model
-                </button>
-                <button
-                    onClick={() => setCurrentTab("add")}
-                    className={cn(
-                        "flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors",
-                        currentTab === "add"
-                            ? "bg-zinc-700 text-white shadow-sm"
-                            : "text-zinc-400 hover:text-zinc-200"
-                    )}
-                >
-                    <Plus size={14} />
-                    Add Provider
-                </button>
-            </div>
-
-            <DialogContent className="max-h-[60vh] overflow-y-auto">
+            <DialogContent className="max-h-[60vh] overflow-y-auto pt-0">
+                <div className="flex gap-2 p-1 bg-zinc-800/50 rounded-lg mb-4 sticky top-0 z-10">
+                    <Button
+                        onPress={() => setCurrentTab("select")}
+                        variant={currentTab === "select" ? "secondary" : "ghost"}
+                        className={cn(
+                            "flex-1 flex items-center justify-center gap-2",
+                            currentTab !== "select" && "text-zinc-400 hover:text-zinc-200"
+                        )}
+                        size="sm"
+                    >
+                        <Settings size={14} />
+                        Select Model
+                    </Button>
+                    <Button
+                        onPress={() => setCurrentTab("add")}
+                        variant={currentTab === "add" ? "secondary" : "ghost"}
+                        className={cn(
+                            "flex-1 flex items-center justify-center gap-2",
+                            currentTab !== "add" && "text-zinc-400 hover:text-zinc-200"
+                        )}
+                        size="sm"
+                    >
+                        <Plus size={14} />
+                        Add Provider
+                    </Button>
+                </div>
                 {currentTab === "select" ? (
                     <div className="space-y-2">
                         {isLoading && models.length === 0 ? (
@@ -68,30 +68,31 @@ export function ModelSettings({ open, onOpenChange }: ModelSettingsProps) {
                             <div className="text-center py-8 text-zinc-500">No models found. Add a provider first.</div>
                         ) : (
                             models.map((model) => (
-                                <button
+                                <Button
                                     key={model.id}
-                                    onClick={() => handleSwitchModel(model.id)}
+                                    onPress={() => handleSwitchModel(model.id)}
+                                    variant="ghost"
                                     className={cn(
-                                        "w-full flex items-center justify-between p-3 rounded-lg border transition-all text-left",
+                                        "w-full flex items-center justify-between p-3 h-auto min-h-[48px] rounded-lg border transition-all text-left",
                                         activeModel === model.id
-                                            ? "bg-blue-500/10 border-blue-500 text-blue-400"
-                                            : "bg-zinc-800/50 border-zinc-700 text-zinc-300 hover:border-zinc-600 hover:bg-zinc-800"
+                                            ? "bg-primary/10 border-primary text-primary"
+                                            : "bg-surface-secondary/50 border-border text-muted-foreground hover:border-border-strong hover:bg-surface-secondary"
                                     )}
                                 >
-                                    <div>
-                                        <div className="font-medium">{model.name}</div>
-                                        <div className="text-xs text-zinc-500 uppercase tracking-wider">{model.providerId}</div>
+                                    <div className="flex flex-col items-start">
+                                        <div className="font-medium text-foreground">{model.name}</div>
+                                        <div className="text-xs text-muted-foreground uppercase tracking-wider">{model.providerId}</div>
                                     </div>
-                                    {activeModel === model.id && <Check size={18} />}
-                                </button>
+                                    {activeModel === model.id && <Check size={18} className="text-primary" />}
+                                </Button>
                             ))
                         )}
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        <div className="p-4 bg-zinc-800/50 rounded-lg border border-zinc-700 border-dashed text-center">
-                            <p className="text-sm text-zinc-400 mb-2">Programmatic Provider Registration</p>
-                            <p className="text-xs text-zinc-500">
+                        <div className="p-4 bg-surface-secondary/50 rounded-lg border border-border border-dashed text-center">
+                            <p className="text-sm text-muted-foreground mb-2">Programmatic Provider Registration</p>
+                            <p className="text-xs text-muted-foreground">
                                 Currently, providers are registered programmatically in `apps/server/src/config.ts`.
                                 Dynamic registration via UI is coming soon.
                             </p>

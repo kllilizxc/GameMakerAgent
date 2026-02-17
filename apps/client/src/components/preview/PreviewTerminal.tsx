@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react"
 import { usePreviewStore } from "@/stores/preview"
 import { useSessionStore } from "@/stores/session"
-import { Trash2, X, Terminal, MessageSquarePlus } from "lucide-react"
+import { Trash2, Terminal, MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { IconButton } from "@/components/ui/IconButton"
 
@@ -61,7 +61,7 @@ export function PreviewTerminal() {
                         }}
                         title="Send last 10 logs to prompt"
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        icon={<MessageSquarePlus size={14} />}
+                        icon={<MessageSquare size={14} />}
                     />
                     <IconButton
                         size="sm"

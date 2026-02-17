@@ -4,8 +4,10 @@ import type { Message } from "@/types/session"
 import { useSessionStore } from "@/stores/session"
 import { NodeRenderer } from "markstream-react"
 import { Undo2 } from "lucide-react"
+import { Button } from "@heroui/react"
 import { TaskSteps } from "./TaskSteps"
 import { TodoList } from "./TodoList"
+import { useConfirm } from "@/hooks/useConfirm"
 import { renderUIPart } from "../ui-parts/UIRegistry"
 import "./MessageItem.scss"
 
@@ -17,21 +19,33 @@ interface MessageItemProps {
 function RewindButton({ messageId }: { messageId: string }) {
   const rewind = useSessionStore((s) => s.rewind)
   const isRunning = useSessionStore((s) => s.status === "running")
+  const { confirm } = useConfirm()
+
+  const handleRewind = async () => {
+    const ok = await confirm({
+      title: "Rewind Session?",
+      description: "This will remove all subsequent messages and activities. Your current draft will be replaced with this prompt.",
+      confirmText: "Rewind",
+      cancelText: "Cancel",
+      variant: "destructive"
+    })
+    if (ok) {
+      rewind(messageId, true)
+    }
+  }
 
   return (
-    <button
-      onClick={() => rewind(messageId, true)}
-      disabled={isRunning}
-      className={cn(
-        "p-1 rounded-full text-xs flex items-center gap-1 transition-colors cursor-pointer",
-        isRunning
-          ? "cursor-not-allowed opacity-50 text-muted-foreground"
-          : "bg-secondary shadow-sm border border-border"
-      )}
+    <Button
+      onPress={handleRewind}
+      isDisabled={isRunning}
+      isIconOnly
+      variant="secondary"
+      size="sm"
+      className="rounded-full shadow-sm border border-border"
       title={isRunning ? "Rewind disabled during generation" : "Rewind to this prompt"}
     >
       <Undo2 className="w-4 h-4 text-foreground" />
-    </button>
+    </Button>
   )
 }
 
