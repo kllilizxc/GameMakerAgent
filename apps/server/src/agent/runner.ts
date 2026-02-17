@@ -8,6 +8,7 @@ import { getEngine } from "../engine/registry"
 import type { FsPatchOp, AgentEventMessage, FsPatchMessage } from "../protocol/messages"
 import { saveMetadata } from "../session/workspace"
 import { Perf } from "@game-agent/perf"
+import { isImageFile } from "@game-agent/common"
 
 interface RunContext {
   session: Session
@@ -64,18 +65,32 @@ export async function executeRun(
   watcher.on("add", async (path: string) => {
     if (ctx.aborted) return
     const rel = relative(workspaceDir, path)
-    const content = await readFile(path, "utf-8").catch(() => null)
-    if (content !== null) {
-      queuePatch({ op: "write", path: rel, content })
+    if (isImageFile(rel)) {
+      const buffer = await readFile(path).catch(() => null)
+      if (buffer !== null) {
+        queuePatch({ op: "write", path: rel, content: buffer.toString("base64"), encoding: "base64" })
+      }
+    } else {
+      const content = await readFile(path, "utf-8").catch(() => null)
+      if (content !== null) {
+        queuePatch({ op: "write", path: rel, content })
+      }
     }
   })
 
   watcher.on("change", async (path: string) => {
     if (ctx.aborted) return
     const rel = relative(workspaceDir, path)
-    const content = await readFile(path, "utf-8").catch(() => null)
-    if (content !== null) {
-      queuePatch({ op: "write", path: rel, content })
+    if (isImageFile(rel)) {
+      const buffer = await readFile(path).catch(() => null)
+      if (buffer !== null) {
+        queuePatch({ op: "write", path: rel, content: buffer.toString("base64"), encoding: "base64" })
+      }
+    } else {
+      const content = await readFile(path, "utf-8").catch(() => null)
+      if (content !== null) {
+        queuePatch({ op: "write", path: rel, content })
+      }
     }
   })
 

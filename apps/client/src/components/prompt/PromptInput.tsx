@@ -152,12 +152,6 @@ export function PromptInput({
   const handleModelChange = useCallback((modelId: string) => {
     if (modelId && modelId !== activeModel) {
       setActiveModel(modelId)
-      // Persist to backend
-      fetch("/workspaces/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ activeModel: modelId }),
-      }).catch((err) => console.error("Failed to save model setting:", err))
     }
   }, [activeModel, setActiveModel])
 
