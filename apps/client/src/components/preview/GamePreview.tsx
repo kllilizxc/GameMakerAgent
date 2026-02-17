@@ -1,5 +1,7 @@
 import React, { memo, useEffect, useRef, useCallback } from "react"
 import { usePreviewStore } from "@/stores/preview"
+import { useIsMobile } from "@/hooks/useIsMobile"
+import { cn } from "@/lib/utils"
 import { Loader2, AlertCircle, Gamepad2 } from "lucide-react"
 
 interface GamePreviewProps {
@@ -13,6 +15,7 @@ export const GamePreview = memo(function GamePreview({ width = 800, height = 600
   const error = usePreviewStore((s) => s.error)
   const refreshKey = usePreviewStore((s) => s.refreshKey)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     if (iframeRef.current && url) {
@@ -104,14 +107,17 @@ export const GamePreview = memo(function GamePreview({ width = 800, height = 600
   return (
     <div
       ref={containerRef}
-      className="w-full h-full flex items-center justify-center overflow-hidden bg-black relative"
+      className={cn(
+        "w-full h-full flex justify-center overflow-hidden bg-black relative",
+        isMobile ? "items-start pt-8" : "items-center"
+      )}
     >
       <div
         style={{
           width,
           height,
           transform: `scale(${scale})`,
-          transformOrigin: 'center center',
+          transformOrigin: isMobile ? 'top center' : 'center center',
         }}
         className="shrink-0"
       >
