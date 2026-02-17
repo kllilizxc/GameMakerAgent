@@ -1,19 +1,42 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 
 interface UseResizableOptions {
     initialWidth?: number
     minWidth?: number
     maxWidth?: number
     direction?: "horizontal" | "vertical" // For future extensibility
+    storageKey?: string
 }
 
 export function useResizable({
     initialWidth = 320,
     minWidth = 260,
     maxWidth = 600,
+    storageKey,
 }: UseResizableOptions = {}) {
-    const [width, setWidth] = useState(initialWidth)
+    const [width, setWidth] = useState(() => {
+        if (storageKey) {
+            try {
+                const stored = localStorage.getItem(storageKey)
+                if (stored) {
+                    const parsed = parseInt(stored, 10)
+                    if (!isNaN(parsed)) {
+                        return Math.max(minWidth, Math.min(parsed, maxWidth))
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to load resize width from storage:", e)
+            }
+        }
+        return initialWidth
+    })
     const [isResizing, setIsResizing] = useState(false)
+    const widthRef = useRef(width)
+
+    // Keep ref in sync with state for event handlers
+    useEffect(() => {
+        widthRef.current = width
+    }, [width])
 
     const startResizing = (e: React.MouseEvent | React.TouchEvent) => {
         // Prevent text selection on start for mouse
@@ -34,15 +57,6 @@ export function useResizable({
         }
 
         const handleMove = (e: MouseEvent | TouchEvent) => {
-            // Prevent default to stop scrolling while resizing
-            if (e.type === 'touchmove') {
-                // Passive listener issue might occur if we preventDefault in some browsers, 
-                // but for resizing we usually want to stop scroll.
-                // However, React's synthetic event wrapper might be passive by default? 
-                // We are adding native listener here.
-            }
-            // e.preventDefault() 
-
             const clientX = getClientX(e)
             const newWidth = Math.max(minWidth, Math.min(clientX, maxWidth))
             setWidth(newWidth)
@@ -52,6 +66,14 @@ export function useResizable({
             setIsResizing(false)
             document.body.style.cursor = "default"
             document.body.style.userSelect = "auto"
+
+            if (storageKey) {
+                try {
+                    localStorage.setItem(storageKey, widthRef.current.toString())
+                } catch (e) {
+                    console.error("Failed to save resize width to storage:", e)
+                }
+            }
         }
 
         document.addEventListener("mousemove", handleMove)
@@ -70,7 +92,7 @@ export function useResizable({
             document.body.style.cursor = "default"
             document.body.style.userSelect = "auto"
         }
-    }, [isResizing, minWidth, maxWidth])
+    }, [isResizing, minWidth, maxWidth, storageKey])
 
     return {
         width,

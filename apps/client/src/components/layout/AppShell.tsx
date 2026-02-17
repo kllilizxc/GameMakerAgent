@@ -17,6 +17,7 @@ export function AppShell() {
     initialWidth: 320,
     minWidth: 260,
     maxWidth: 600,
+    storageKey: "sidebar-width",
   })
 
   const sidebarRef = useRef<HTMLElement>(null)
@@ -49,7 +50,7 @@ export function AppShell() {
             {/* Resize Handle */}
             <div
               className={cn(
-                "absolute top-[50%] -right-[8px] w-[16px] h-[30%] mt-[-30%] rounded-[8px] bg-border cursor-col-resize z-50",
+                "absolute top-[50%] -right-[8px] w-[16px] h-[30%] mt-[-30%] rounded-[8px] bg-secondary shadow-sm cursor-col-resize z-50",
               )}
               onMouseDown={startResizing}
               onTouchStart={startResizing}

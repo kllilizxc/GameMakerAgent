@@ -23,7 +23,7 @@ function RewindButton({ messageId }: { messageId: string }) {
       onClick={() => rewind(messageId, true)}
       disabled={isRunning}
       className={cn(
-        "p-1 rounded-full text-xs flex items-center gap-1 transition-colors",
+        "p-1 rounded-full text-xs flex items-center gap-1 transition-colors cursor-pointer",
         isRunning
           ? "cursor-not-allowed opacity-50 text-muted-foreground"
           : "bg-secondary shadow-sm border border-border"
@@ -106,7 +106,7 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
         ))}
       </div>
 
-      <div className={cn("absolute opacity-0 group-hover:opacity-100 transition-opacity", "-top-2 -right-2")}>
+      <div className={cn("absolute", "-top-2 -right-2")}>
         {isUser && <RewindButton messageId={message.id} />}
       </div>
     </div>
