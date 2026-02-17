@@ -50,7 +50,7 @@ export function AppShell() {
             {/* Resize Handle */}
             <div
               className={cn(
-                "absolute top-[50%] -right-[8px] w-[16px] h-[30%] mt-[-30%] rounded-[8px] bg-secondary shadow-sm cursor-col-resize z-50",
+                "absolute top-[45%] -right-[8px] w-[16px] h-[10%] rounded-[8px] bg-secondary border border-border shadow-sm cursor-col-resize z-50",
               )}
               onMouseDown={startResizing}
               onTouchStart={startResizing}
