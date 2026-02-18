@@ -1,5 +1,6 @@
 
 import { Jimp } from "jimp"
+export { Jimp }
 
 export async function genEmptyPng(w = 1024, h = 256) {
 
@@ -26,6 +27,74 @@ export async function genGuideImage(targetW: number, targetH: number, baseSize =
 
     const buffer = await image.getBuffer("image/png");
     return "data:image/png;base64," + buffer.toString("base64");
+}
+
+export async function genGridGuide(rows: number, cols: number, baseSize = 1024) {
+    // Create base image (transparent or black?) - let's use black for contrast
+    const image = new Jimp({ width: baseSize, height: baseSize, color: 0x000000FF });
+
+    // Cell size
+    const cellW = baseSize / cols
+    const cellH = baseSize / rows
+
+    // Draw grid
+    // For guide, maybe alternating colors or just lines?
+    // Let's draw green boxes for each cell with a small gap to define the grid clearly
+
+    const gap = 4 // 4px gap
+    const boxColor = 0x00FF00FF // Green
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const x = c * cellW + gap
+            const y = r * cellH + gap
+            const w = cellW - gap * 2
+            const h = cellH - gap * 2
+
+            // Use scan to fill rect manually or composite a new image
+            // Efficient way:
+            const cell = new Jimp({ width: w, height: h, color: boxColor })
+            image.composite(cell, x, y)
+        }
+    }
+
+    const buffer = await image.getBuffer("image/png");
+    const guide = "data:image/png;base64," + buffer.toString("base64");
+
+    const cleanup = async (inputBuffer: Buffer): Promise<Buffer> => {
+        const img = await Jimp.read(inputBuffer)
+
+        // We want to clear everything that IS NOT in the cell boxes
+        // Effectively, clear the "gaps"
+        // Iterate slightly inefficiently or calculate regions?
+        // Let's iterate pixels and check if they fall in a gap
+
+        img.scan(0, 0, img.bitmap.width, img.bitmap.height, (x, y, idx) => {
+            // Map x, y to cell coordinates
+            const colIndex = Math.floor(x / cellW)
+            const rowIndex = Math.floor(y / cellH)
+
+            // Calculate cell bounds in local coordinates relative to the cell start
+            const cellStartX = colIndex * cellW
+            const cellStartY = rowIndex * cellH
+
+            // The "valid" area (green box) starts at cellStartX + gap and ends at cellStartX + cellW - gap
+            // But wait, the box width is cellW - gap*2.
+            // So valid range for x is [cellStartX + gap, cellStartX + cellW - gap)
+
+            const validX = x >= (cellStartX + gap) && x < (cellStartX + cellW - gap)
+            const validY = y >= (cellStartY + gap) && y < (cellStartY + cellH - gap)
+
+            if (!validX || !validY) {
+                // In gap/line region -> make transparent
+                img.bitmap.data[idx + 3] = 0 // Alpha = 0
+            }
+        })
+
+        return await img.getBuffer("image/png")
+    }
+
+    return { guide, cleanup }
 }
 
 
@@ -84,4 +153,12 @@ export async function cropImage(buffer: Buffer, width: number, height: number): 
     }
 
     return await image.getBuffer("image/png")
+}
+
+export async function getImageSize(buffer: Buffer): Promise<{ width: number, height: number }> {
+    const image = await Jimp.read(buffer)
+    return {
+        width: image.bitmap.width,
+        height: image.bitmap.height
+    }
 }

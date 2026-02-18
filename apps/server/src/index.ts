@@ -71,26 +71,22 @@ const app = new Elysia()
     })
   })
   .post("/api/generate-image", async ({ body }) => {
-    const { OpenAI } = await import("openai")
-    const client = new OpenAI({
-      baseURL: process.env.NANOBANANA_BASE_URL || "http://127.0.0.1:8045/v1",
-      apiKey: process.env.NANOBANANA_API_KEY || "sk-0c30858760cf47fe9d6e438da54d3808"
+    const { generateImage } = await import("@game-agent/common")
+
+    const content = await generateImage({
+      type: body.type as any || "chat",
+      prompt: body.prompt,
+      model: body.model,
+      size: body.size
     })
 
-    const response = await client.chat.completions.create({
-      model: body.model || "gemini-3-pro-image",
-      messages: [{
-        "role": "user",
-        "content": body.prompt
-      }]
-    } as any)
-
-    return { content: response.choices[0].message.content }
+    return { content }
   }, {
     body: t.Object({
       prompt: t.String(),
       size: t.Optional(t.String()),
-      model: t.Optional(t.String())
+      model: t.Optional(t.String()),
+      type: t.Optional(t.String())
     })
   })
   .post("/api/save-image", async ({ body }: { body: { imageUrl: string, type: string, sessionId: string } }) => {
