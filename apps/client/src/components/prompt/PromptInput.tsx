@@ -12,6 +12,7 @@ interface PromptInputProps {
   onChange: (value: string) => void
   onSubmit: (e: FormEvent, attachments?: string[]) => void
   onInterrupt?: () => void
+  onFocus?: () => void
   isLoading?: boolean
   placeholder?: string
   disabled?: boolean
@@ -28,6 +29,7 @@ export function PromptInput({
   onChange,
   onSubmit,
   onInterrupt,
+  onFocus,
   isLoading = false,
   placeholder = "Describe your game here",
   disabled = false,
@@ -221,6 +223,7 @@ export function PromptInput({
             ref={textareaRef}
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            onFocus={onFocus}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             className="w-full bg-transparent text-[15px] text-foreground placeholder:text-muted outline-none resize-none overflow-y-auto max-h-[150px] min-h-[24px] leading-relaxed scrollbar-none"

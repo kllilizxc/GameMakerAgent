@@ -1,5 +1,6 @@
 import { memo, useState, useEffect } from "react"
 import { useSessionStore } from "@/stores/session"
+import { useFilesStore } from "@/stores/files"
 import { usePromptSubmit } from "@/hooks/usePromptSubmit"
 import { PromptHeader } from "@/components/prompt/PromptHeader"
 import { PromptInput } from "@/components/prompt/PromptInput"
@@ -103,6 +104,7 @@ export const PromptPanel = memo(function PromptPanel({ mobile }: PromptPanelProp
           onSubmit={handleSubmit}
           isLoading={isLoading}
           onInterrupt={interrupt}
+          onFocus={() => useFilesStore.getState().syncFiles()}
         />
       </div>
     </div>

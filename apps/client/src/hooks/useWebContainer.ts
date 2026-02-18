@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { WebContainer } from "@webcontainer/api"
-import { useFilesStore } from "@/stores/files"
 import { usePreviewStore } from "@/stores/preview"
 
 let webcontainerInstance: WebContainer | null = null
@@ -196,7 +195,7 @@ export function useWebContainer() {
         }
 
         // Also update local store
-        useFilesStore.getState().applyPatch(patch)
+        // useFilesStore.getState().applyPatch(patch) -- REMOVED to avoid loop with useFileSync
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to apply patch"
         addLog("error", message)

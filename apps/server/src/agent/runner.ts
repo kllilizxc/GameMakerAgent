@@ -32,7 +32,7 @@ export async function executeRun(
   const engine = getEngine(session.engineId)
 
   const watcher = watch(workspaceDir, {
-    ignored: /(^|[\/\\])(\.|node_modules|\.git)/,
+    ignored: /(^|[\/\\])(\.|node_modules|\.git|--temp-)/,
     persistent: true,
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },

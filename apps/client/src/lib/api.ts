@@ -150,3 +150,7 @@ export async function generateImage(prompt: string, size: string): Promise<any> 
 export async function saveImage(imageUrl: string, type: string, sessionId: string): Promise<any> {
     return post<any>("/api/save-image", { imageUrl, type, sessionId })
 }
+
+export async function saveFiles(sessionId: string, changes: Array<{ path: string, content: string }>): Promise<any> {
+    return post<any>("/api/fs/save", { sessionId, changes })
+}

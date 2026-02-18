@@ -3,7 +3,7 @@ import { join, relative } from "node:path"
 import type { FileMap } from "../engine/adapter"
 import type { FsPatchOp } from "../protocol/messages"
 import { Perf } from "@game-agent/perf"
-import { isImageFile, FILE_SIZE_LIMIT_BINARY, FILE_SIZE_LIMIT_TEXT } from "@game-agent/common"
+import { isImageFile, FILE_SIZE_LIMIT_BINARY, FILE_SIZE_LIMIT_TEXT, isTempFile } from "@game-agent/common"
 
 const WORKSPACES_DIR = join(process.cwd(), "workspaces")
 
@@ -59,6 +59,7 @@ export async function readWorkspaceFiles(sessionId: string): Promise<Record<stri
         if (entry.name === "node_modules" || entry.name === ".git") continue
         await walk(full)
       } else {
+        if (isTempFile(entry.name)) continue
         const rel = relative(dir, full)
         const info = await stat(full)
 

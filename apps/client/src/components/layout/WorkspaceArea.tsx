@@ -32,7 +32,7 @@ export const WorkspaceArea = memo(function WorkspaceArea() {
             view === "editor" ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
           )}
         >
-          <CodeEditor />
+          <CodeEditor active={view === "editor"} />
         </div>
         <div
           className={cn(

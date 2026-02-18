@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from "react"
+import { memo, useEffect, useRef, useCallback } from "react"
 import { EditorView, basicSetup } from "codemirror"
 import { EditorState } from "@codemirror/state"
 import { javascript } from "@codemirror/lang-javascript"
@@ -31,19 +31,41 @@ function getLanguageExtension(filename: string) {
 
 import { ImagePreview } from "./ImagePreview"
 
-export const CodeEditor = memo(function CodeEditor() {
+// Internal component for the actual editor instance
+const ActiveEditor = memo(function ActiveEditor({ file, active }: { file: string, active: boolean }) {
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
-  const selectedFile = useFilesStore((s) => s.selectedFile)
-  const files = useFilesStore((s) => s.files)
+  const dirtyRef = useRef(false)
+  const autoSaveRef = useRef<NodeJS.Timeout | null>(null)
 
-  const isImage = selectedFile ? isImageFile(selectedFile) : false
+  // Save changes helper
+  const saveChanges = useCallback(() => {
+    if (dirtyRef.current && viewRef.current) {
+      const content = viewRef.current.state.doc.toString()
+      useFilesStore.getState().applyPatch({
+        op: "write",
+        path: file,
+        content: content
+      })
+      dirtyRef.current = false
+    }
+  }, [file])
+
+  // Save when becoming inactive
+  useEffect(() => {
+    if (!active) {
+      saveChanges()
+    }
+  }, [active, saveChanges])
 
   useEffect(() => {
-    if (!editorRef.current || isImage) return
+    if (!editorRef.current) return
 
-    const content = selectedFile ? (useFilesStore.getState().getFileContent(selectedFile) || "") : ""
-    const langExt = selectedFile ? getLanguageExtension(selectedFile) : []
+    const content = useFilesStore.getState().getFileContent(file) || ""
+    const langExt = getLanguageExtension(file)
+
+    // Reset dirty state on init
+    dirtyRef.current = false
 
     const state = EditorState.create({
       doc: content,
@@ -55,7 +77,24 @@ export const CodeEditor = memo(function CodeEditor() {
           "&": { height: "100%" },
           ".cm-scroller": { overflow: "auto" },
         }),
-        EditorState.readOnly.of(true),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            dirtyRef.current = true
+
+            // Reset 5min auto-save timer on every change
+            if (autoSaveRef.current) {
+              clearTimeout(autoSaveRef.current)
+            }
+            autoSaveRef.current = setTimeout(() => {
+              saveChanges()
+            }, 5 * 60 * 1000)
+          }
+        }),
+        EditorView.domEventHandlers({
+          blur: () => {
+            saveChanges()
+          },
+        }),
       ],
     })
 
@@ -69,12 +108,38 @@ export const CodeEditor = memo(function CodeEditor() {
     })
 
     return () => {
+      // If there are unsaved changes, save them on unmount
+      saveChanges()
+
+      if (autoSaveRef.current) {
+        clearTimeout(autoSaveRef.current)
+      }
+
       viewRef.current?.destroy()
       viewRef.current = null
     }
-  }, [selectedFile, files, isImage])
+  }, [file]) // Re-init ONLY when file path changes
 
-  if (files.size === 0) {
+  return <div ref={editorRef} className="h-full w-full overflow-hidden" />
+})
+
+export const CodeEditor = memo(function CodeEditor({ active = true }: { active?: boolean }) {
+  const selectedFile = useFilesStore((s) => s.selectedFile)
+  const hasFiles = useFilesStore((s) => s.files.size > 0)
+  const syncFiles = useFilesStore((s) => s.syncFiles)
+
+  const isImage = selectedFile ? isImageFile(selectedFile) : false
+
+  // Sync on tab switch (active -> false)
+  useEffect(() => {
+    // console.log("[CodeEditor] active:", active)
+    if (!active) {
+      console.log("[CodeEditor] Tab inactive, triggering syncFiles")
+      syncFiles()
+    }
+  }, [active, syncFiles])
+
+  if (!hasFiles) {
     return (
       <div className="h-full flex items-center justify-center text-muted-foreground">
         <p className="text-sm">No files yet. Send a prompt to start!</p>
@@ -91,10 +156,16 @@ export const CodeEditor = memo(function CodeEditor() {
 
       {/* Editor or Preview */}
       <div className="flex-1 overflow-hidden relative">
-        {isImage ? (
+        {selectedFile && !isImage && (
+          <ActiveEditor file={selectedFile} active={active} />
+        )}
+        {selectedFile && isImage && (
           <ImagePreview />
-        ) : (
-          <div ref={editorRef} className="h-full w-full overflow-hidden" />
+        )}
+        {!selectedFile && (
+          <div className="h-full flex items-center justify-center text-muted-foreground">
+            <p className="text-sm">Select a file to edit</p>
+          </div>
         )}
       </div>
     </div>

@@ -151,6 +151,38 @@ const app = new Elysia()
       sessionId: t.String()
     })
   })
+  .post("/api/fs/save", async ({ body }: { body: { sessionId: string, changes: Array<{ path: string, content: string }> } }) => {
+    const { join, dirname } = await import("node:path")
+    const { existsSync, mkdirSync, writeFileSync } = await import("node:fs")
+    const { loadSession } = await import("./session/manager")
+    const { workspacePath } = await import("./session/workspace")
+
+    const session = await loadSession(body.sessionId)
+    if (!session) {
+      throw new Error(`Session not found: ${body.sessionId}`)
+    }
+
+    const rootDir = workspacePath(body.sessionId)
+
+    for (const change of body.changes) {
+      const filePath = join(rootDir, change.path)
+      const dir = dirname(filePath)
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true })
+      }
+      writeFileSync(filePath, change.content)
+    }
+
+    return { success: true }
+  }, {
+    body: t.Object({
+      sessionId: t.String(),
+      changes: t.Array(t.Object({
+        path: t.String(),
+        content: t.String()
+      }))
+    })
+  })
   .post("/api/session/create", async ({ body }) => {
     const { createSession, getSnapshot, nextSeq, transformMessages } = await import("./session/manager")
     const { Todo, Session } = await import("@game-agent/agent")

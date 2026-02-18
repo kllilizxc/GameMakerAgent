@@ -120,7 +120,7 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
         ))}
       </div>
 
-      <div className={cn("absolute", "-top-2 -right-2")}>
+      <div className={cn("absolute", "-top-4 -right-2")}>
         {isUser && <RewindButton messageId={message.id} />}
       </div>
     </div>
