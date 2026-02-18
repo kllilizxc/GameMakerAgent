@@ -560,10 +560,10 @@ function handleServerMessage(
               for (const patch of ops) {
                 // Store update (sync)
                 filesStore.applyPatch(patch, true)
-                useSessionStore.getState().addActivity({
-                  type: "file",
-                  data: { path: patch.path },
-                })
+                // useSessionStore.getState().addActivity({
+                //   type: "file",
+                //   data: { path: patch.path },
+                // })
 
                 // WebContainer update (async)
                 if (wc) {
