@@ -22,7 +22,7 @@ export const TodoList = memo(function TodoList({ todos }: TodoListProps) {
             >
                 <span className="font-medium text-foreground flex items-center gap-2">
                     Todo List
-                    <span className="text-xs bg-muted px-1.5 py-0.5 rounded-full text-foreground/70">
+                    <span className="text-xs bg-muted px-1.5 py-0.5 rounded-full text-overlay">
                         {pending.length} pending
                     </span>
                 </span>

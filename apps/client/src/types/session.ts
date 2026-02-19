@@ -10,7 +10,7 @@ export interface MessagePart {
 
 export interface Message {
   id: string
-  role: "user" | "agent"
+  role: "user" | "agent" | "error"
   content: string // Kept for backward compatibility/summary
   parts?: MessagePart[]
   streaming?: boolean
@@ -47,6 +47,15 @@ export interface Activity {
     title?: string
     path?: string
     text?: string
+  }
+  metadata?: {
+    todos?: {
+      id: string
+      content: string
+      status: string
+      priority: string
+    }[]
+    [key: string]: any
   }
 }
 

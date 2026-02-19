@@ -225,7 +225,11 @@ export const useSessionStore = create<SessionState>()(
           return
         }
 
-        set({ status: "running", error: null })
+        set((s) => ({
+          status: "running",
+          error: null,
+          messages: s.messages
+        }))
 
         try {
           const model = useSettingsStore.getState().activeModel
@@ -240,8 +244,20 @@ export const useSessionStore = create<SessionState>()(
             handleServerMessage(msg, set, get)
           })
         } catch (e) {
-          console.error("Failed to send prompt:", e)
-          set({ status: "error", error: e instanceof Error ? e.message : "Failed to send prompt" })
+          const errorMessage = e instanceof Error ? e.message : "Failed to send prompt"
+          set((s) => ({
+            status: "error",
+            error: errorMessage,
+            messages: [
+              ...s.messages,
+              {
+                id: crypto.randomUUID(),
+                role: "error",
+                content: errorMessage,
+                timestamp: Date.now(),
+              },
+            ],
+          }))
         } finally {
           set((s) => (s.status === "running" ? { status: "idle" } : {}))
         }
@@ -446,7 +462,10 @@ function processLoadedMessages(messages: any[]): Message[] {
     streaming: false,
     timestamp: pm.timestamp,
     metadata: pm.metadata,
-    activities: pm.activities,
+    activities: pm.activities?.map((a: any) => ({
+      ...a,
+      metadata: a.metadata || (a.data?.tool === "todowrite" ? pm.metadata : undefined)
+    })),
   }))
 }
 
@@ -527,6 +546,7 @@ function handleServerMessage(
       } else if (event?.type === "tool" && event.data?.tool) {
         const { tool, title } = event.data
         const callId = event.data.callId || crypto.randomUUID()
+        const metadata = (event.data as any)?.metadata
 
         set((s) => {
           const activities = s.activities || []
@@ -538,11 +558,11 @@ function handleServerMessage(
               ...nextActivities[existingIndex],
               completed: true,
               data: { tool, title },
+              metadata: metadata || nextActivities[existingIndex].metadata
             }
 
             // Extract todos from todowrite tool
             const updates: Partial<SessionState> = { activities: nextActivities }
-            const metadata = (event.data as any)?.metadata
             if (tool === "todowrite" && metadata?.todos) {
               updates.todos = metadata.todos
             }
@@ -559,6 +579,7 @@ function handleServerMessage(
                 callId,
                 timestamp: Date.now(),
                 data: { tool, title },
+                metadata
               },
             ],
             sequence: s.sequence + 1,
@@ -598,12 +619,23 @@ function handleServerMessage(
       set({ status: "idle" })
       break
 
-    case "run/error":
-      set({
+    case "run/error": {
+      const errorMessage = (msg.message as string) || "Unknown error"
+      set((s) => ({
         status: "error",
-        error: (msg.message as string) || "Unknown error",
-      })
+        error: errorMessage,
+        messages: [
+          ...s.messages,
+          {
+            id: crypto.randomUUID(),
+            role: "error",
+            content: errorMessage,
+            timestamp: Date.now(),
+          },
+        ],
+      }))
       break
+    }
 
     case "fs/patch": {
       const ops = msg.ops as FsPatch[] | undefined

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto"
 import { watch } from "chokidar"
 import { readFile } from "node:fs/promises"
 import { relative } from "node:path"
@@ -9,6 +8,7 @@ import type { FsPatchOp, AgentEventMessage, FsPatchMessage } from "../protocol/m
 import { saveMetadata } from "../session/workspace"
 import { Perf } from "@game-agent/perf"
 import { isImageFile } from "@game-agent/common"
+import { run } from "@game-agent/agent"
 
 interface RunContext {
   session: Session
@@ -109,9 +109,6 @@ export async function executeRun(
   })
 
   try {
-    // Dynamic import to avoid cycles if any
-    const { run } = await import("@game-agent/agent")
-
     const systemPrompt = engine.systemPrompt?.() ?? ""
 
     const agentTimer = Perf.time("agent", "llm-execute")

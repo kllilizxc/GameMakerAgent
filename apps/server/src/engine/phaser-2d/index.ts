@@ -63,6 +63,11 @@ You are building a 2D game using Phaser 3.
 # Note
 - You only need to create the game files, no need to install dependencies or run it.
 - The game will be run by the user.
-- Keep the code simple and functional. Focus on gameplay first.`
+- Keep the code simple and functional. Focus on gameplay first.
+- If a tool fails 3 times, you should stop and try another way or tell the user something is wrong.
+
+# Skill Usage
+You have access to specialized skills. You MUST proactively check available skills and load any that are relevant to the user's request.
+For example, if the user asks for character animation or spritesheets, you SHOULD load the 'sprite-animation' skill before proceeding.`
   },
 }

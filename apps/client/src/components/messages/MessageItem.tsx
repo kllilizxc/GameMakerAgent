@@ -7,10 +7,9 @@ import { NodeRenderer } from "markstream-react"
 import { Undo2 } from "lucide-react"
 import { Button } from "@heroui/react"
 import { TaskSteps } from "./TaskSteps"
-import { TodoList } from "./TodoList"
 import { useConfirm } from "@/hooks/useConfirm"
 import { renderUIPart } from "../ui-parts/UIRegistry"
-import { ChevronDown, Brain } from "lucide-react"
+import { ChevronDown, Brain, AlertCircle } from "lucide-react"
 import "./MessageItem.scss"
 
 interface MessageItemProps {
@@ -95,11 +94,13 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
   const isAgent = message.role === "agent"
 
   const bubbleClass = useMemo(() => cn(
-    "rounded-lg py-3 text-sm w-fit max-w-full",
+    "rounded-lg py-3 text-sm w-full",
     isUser
       ? "bg-primary px-4 text-primary-foreground ml-8"
-      : "bg-transparent prose prose-sm prose-invert max-w-none"
-  ), [isUser])
+      : message.role === "error"
+        ? "bg-red-400 border text-white px-4 py-3"
+        : "bg-transparent prose prose-sm prose-invert"
+  ), [isUser, message.role])
 
   const imageBlockClass = useMemo(() => cn(
     "rounded-lg overflow-hidden w-fit max-w-full",
@@ -107,15 +108,16 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
   ), [isUser])
 
   return (
-    <div className={cn("message-item group relative flex flex-col gap-2", isUser ? "items-end" : "items-start")}>
+    <div className={cn(
+      "message-item group relative flex flex-col gap-2",
+      isUser ? "items-end" : "items-start",
+      message.role === "error" && "w-full items-center my-4"
+    )}>
       <div className={cn("flex flex-col gap-2 w-full overflow-x-auto", isUser ? "items-end" : "items-start")}>
         {/* Main content block: metadata and text parts */}
         <div className={bubbleClass}>
           {message.metadata?.summary && (
             <TaskSteps steps={message.metadata.summary} />
-          )}
-          {message.metadata?.todos && (
-            <TodoList todos={message.metadata.todos} />
           )}
           <div className={cn("flex flex-col gap-2 overflow-x-hidden", isUser && "prose prose-sm prose-invert max-w-none overflow-x-auto")}>
             {message.parts && message.parts.length > 0 ? (
