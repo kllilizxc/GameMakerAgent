@@ -54,7 +54,7 @@ function ReasoningBlock({ text }: { text: string }) {
   const previewText = text.replace(/\n/g, " ").slice(0, 80).trim() + (text.length > 80 ? "..." : "")
 
   return (
-    <div className="reasoning-block border-l-2 border-primary/30 px-3 py-2 my-2 bg-muted/30 rounded-r-md">
+    <div className="reasoning-block border-l-2 border-primary/30 px-3 py-2 bg-muted/30 rounded-r-md">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left"
@@ -113,7 +113,7 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
       isUser ? "items-end" : "items-start",
       message.role === "error" && "w-full items-center my-4"
     )}>
-      <div className={cn("flex flex-col gap-2 w-full overflow-x-auto", isUser ? "items-end" : "items-start")}>
+      <div className={cn("flex flex-col w-full overflow-x-auto", isUser ? "items-end" : "items-start")}>
         {/* Main content block: metadata and text parts */}
         <div className={bubbleClass}>
           {message.metadata?.summary && (
