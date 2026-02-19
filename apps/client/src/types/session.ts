@@ -1,5 +1,5 @@
 export interface MessagePart {
-  type: "text" | "image" | "ui"
+  type: "text" | "image" | "ui" | "reasoning"
   text?: string
   url?: string
   ui?: {

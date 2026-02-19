@@ -1,4 +1,5 @@
-import { memo, useMemo } from "react"
+import { memo, useMemo, useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import type { Message } from "@/types/session"
 import { useSessionStore } from "@/stores/session"
@@ -9,6 +10,7 @@ import { TaskSteps } from "./TaskSteps"
 import { TodoList } from "./TodoList"
 import { useConfirm } from "@/hooks/useConfirm"
 import { renderUIPart } from "../ui-parts/UIRegistry"
+import { ChevronDown, Brain } from "lucide-react"
 import "./MessageItem.scss"
 
 interface MessageItemProps {
@@ -42,10 +44,41 @@ function RewindButton({ messageId }: { messageId: string }) {
       variant="secondary"
       size="sm"
       className="rounded-full shadow-sm border border-border"
-      title={isRunning ? "Rewind disabled during generation" : "Rewind to this prompt"}
     >
       <Undo2 className="w-4 h-4 text-foreground" />
     </Button>
+  )
+}
+
+function ReasoningBlock({ text }: { text: string }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  return (
+    <div className="reasoning-block border-l-2 border-primary/30 px-3 py-2 my-2 bg-muted/30 rounded-r-md">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left"
+      >
+        <Brain className="w-3.5 h-3.5" />
+        <span className="font-medium italic">Thinking</span>
+        <ChevronDown className={cn("w-3.5 h-3.5 ml-auto transition-transform duration-200", isExpanded && "rotate-180")} />
+      </button>
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="reasoning-content pb-2 text-xs italic text-muted-foreground/80 leading-relaxed">
+              <NodeRenderer content={text} final={true} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 
@@ -76,14 +109,17 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
           {message.metadata?.todos && (
             <TodoList todos={message.metadata.todos} />
           )}
-          <div className={cn("flex flex-col gap-2", isUser && "prose prose-sm prose-invert max-w-none overflow-x-auto")}>
+          <div className={cn("flex flex-col gap-2 overflow-x-hidden", isUser && "prose prose-sm prose-invert max-w-none overflow-x-auto")}>
             {message.parts && message.parts.length > 0 ? (
               message.parts
-                .filter(part => part.type === "text")
+                .filter(part => part.type === "text" || part.type === "reasoning")
                 .map((part, i) => (
                   <div key={i}>
-                    {part.text && (
+                    {part.type === "text" && part.text && (
                       <NodeRenderer content={part.text} final={!message.streaming} />
+                    )}
+                    {part.type === "reasoning" && part.text && (
+                      <ReasoningBlock text={part.text} />
                     )}
                   </div>
                 ))

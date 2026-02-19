@@ -42,6 +42,7 @@ interface SessionState {
   sendPrompt: (prompt: string, attachments?: string[]) => void
   addMessage: (message: Message) => void
   updateStreamingMessage: (textId: string, text: string) => void
+  updateStreamingReasoning: (messageId: string, text: string) => void
   finalizeStreamingMessage: () => void
   addActivity: (activity: Omit<Activity, "id" | "timestamp">) => void
   clearActivities: () => void
@@ -257,11 +258,20 @@ export const useSessionStore = create<SessionState>()(
           if (existingIndex !== -1) {
             // Only create a new array if the target message actually changed
             const existing = s.messages[existingIndex]
-            if (existing.content === text && existing.streaming) {
-              return {} // No change needed
+
+            // Check if parts already have text
+            const parts = [...(existing.parts || [])]
+            const textPartIndex = parts.findIndex(p => p.type === "text")
+
+            if (textPartIndex !== -1) {
+              if (parts[textPartIndex].text === text) return {}
+              parts[textPartIndex] = { ...parts[textPartIndex], text }
+            } else {
+              parts.push({ type: "text", text })
             }
+
             const messages = s.messages.map((m, i) =>
-              i === existingIndex ? { ...m, content: text, streaming: true } : m
+              i === existingIndex ? { ...m, content: text, parts, streaming: true } : m
             )
             return {
               messages,
@@ -273,6 +283,7 @@ export const useSessionStore = create<SessionState>()(
             id: textId,
             role: "agent",
             content: text,
+            parts: [{ type: "text", text }],
             streaming: true,
             timestamp: Date.now(),
           }
@@ -280,6 +291,47 @@ export const useSessionStore = create<SessionState>()(
           return {
             messages: [...s.messages, newMessage],
             streamingMessageId: textId,
+          }
+        })
+      },
+
+      updateStreamingReasoning: (messageId: string, text: string) => {
+        set((s) => {
+          const existingIndex = s.messages.findIndex((m) => m.id === messageId)
+
+          if (existingIndex !== -1) {
+            const existing = s.messages[existingIndex]
+            const parts = [...(existing.parts || [])]
+            const reasoningPartIndex = parts.findIndex(p => p.type === "reasoning")
+
+            if (reasoningPartIndex !== -1) {
+              if (parts[reasoningPartIndex].text === text) return {}
+              parts[reasoningPartIndex] = { ...parts[reasoningPartIndex], text }
+            } else {
+              parts.push({ type: "reasoning", text })
+            }
+
+            const messages = s.messages.map((m, i) =>
+              i === existingIndex ? { ...m, parts, streaming: true } : m
+            )
+            return {
+              messages,
+              streamingMessageId: messageId,
+            }
+          }
+
+          const newMessage: Message = {
+            id: messageId,
+            role: "agent",
+            content: "",
+            parts: [{ type: "reasoning", text }],
+            streaming: true,
+            timestamp: Date.now(),
+          }
+
+          return {
+            messages: [...s.messages, newMessage],
+            streamingMessageId: messageId,
           }
         })
       },
@@ -434,8 +486,16 @@ function handleServerMessage(
         if (id) {
           useSessionStore.getState().updateStreamingMessage(id, event.data.text)
         }
+      } else if (event?.type === "reasoning-delta" && event.data?.text) {
+        const id = event.data.messageID || event.data.id
+        if (id) {
+          useSessionStore.getState().updateStreamingReasoning(id, event.data.text)
+        }
       } else if (event?.type === "text" && event.data?.text) {
         // Final complete text
+        useSessionStore.getState().finalizeStreamingMessage()
+      } else if (event?.type === "reasoning" && event.data?.text) {
+        // Final complete reasoning
         useSessionStore.getState().finalizeStreamingMessage()
       } else if (event?.type === "tool-start" && event.data?.tool) {
         const { tool, title } = event.data

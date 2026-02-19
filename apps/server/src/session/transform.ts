@@ -14,7 +14,7 @@ export interface ClientMessage {
 }
 
 export interface MessagePart {
-    type: "text" | "image" | "ui"
+    type: "text" | "image" | "ui" | "reasoning"
     text?: string
     url?: string
     ui?: {
@@ -53,6 +53,8 @@ export function transformMessages(ocMessages: MessageV2.WithParts[]): ClientMess
                     url = `/workspaces/${msg.info.sessionID}/${url}`
                 }
                 parts.push({ type: "image", url })
+            } else if (part.type === "reasoning") {
+                parts.push({ type: "reasoning", text: part.text })
             } else if (part.type === "tool") {
                 // Map specific tools to custom UI parts
                 if (part.tool === "selector" && part.state.status === "completed") {
