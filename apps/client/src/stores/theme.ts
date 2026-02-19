@@ -77,6 +77,8 @@ interface ThemeState {
     setTheme: (theme: string) => void
     setMode: (mode: "light" | "dark") => void
     toggleMode: () => void
+    isChangingTheme: boolean
+    targetMode?: "light" | "dark"
 }
 
 const applyThemeToDom = (theme: string, mode: "light" | "dark") => {
@@ -95,48 +97,69 @@ const applyThemeToDom = (theme: string, mode: "light" | "dark") => {
 
 export const useThemeStore = create<ThemeState>()(
     persist(
-        (set, get) => ({
-            theme: "default",
-            mode: "dark",
+        (set, get) => {
+            const wrapThemeChange = async (fn: () => void, targetMode?: "light" | "dark") => {
+                set({ isChangingTheme: true, targetMode })
 
-            setTheme: (theme) => {
-                const { mode } = get()
-                const config = registeredThemes[theme]
-                if (config && !config.modes.includes(mode)) {
-                    const newMode = config.modes[0]
-                    applyThemeToDom(theme, newMode)
-                    set({ theme, mode: newMode })
-                    return
-                }
+                // Wait for the curtain to fully cover the screen before switching
+                await new Promise(resolve => setTimeout(resolve, 600))
 
-                applyThemeToDom(theme, mode)
-                set({ theme })
-            },
+                fn()
 
-            setMode: (mode) => {
-                const { theme } = get()
-                const config = registeredThemes[theme]
-                if (config && !config.modes.includes(mode)) {
-                    console.warn(`Theme ${theme} does not support ${mode} mode`)
-                    return
-                }
+                // Wait for styles to settle and repaint
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 
-                applyThemeToDom(theme, mode)
-                set({ mode })
-            },
+                set({ isChangingTheme: false, targetMode: undefined })
+            }
 
-            toggleMode: () => {
-                const { theme, mode } = get()
-                const newMode = mode === "light" ? "dark" : "light"
-                const config = registeredThemes[theme]
-                if (config && !config.modes.includes(newMode)) {
-                    return
-                }
+            return {
+                theme: "default",
+                mode: "dark",
+                isChangingTheme: false,
+                targetMode: undefined,
 
-                applyThemeToDom(theme, newMode)
-                set({ mode: newMode })
-            },
-        }),
+                setTheme: (theme) => {
+                    const { mode } = get()
+                    const config = registeredThemes[theme]
+                    const nextMode = (config && !config.modes.includes(mode)) ? config.modes[0] : mode
+
+                    wrapThemeChange(() => {
+                        applyThemeToDom(theme, nextMode)
+                        set({ theme, mode: nextMode })
+                    }, nextMode)
+                },
+
+                setMode: (mode) => {
+                    wrapThemeChange(() => {
+                        const { theme } = get()
+                        const config = registeredThemes[theme]
+                        if (config && !config.modes.includes(mode)) {
+                            console.warn(`Theme ${theme} does not support ${mode} mode`)
+                            return
+                        }
+
+                        applyThemeToDom(theme, mode)
+                        set({ mode })
+                    }, mode)
+                },
+
+                toggleMode: () => {
+                    const { mode } = get()
+                    const newMode = mode === "light" ? "dark" : "light"
+
+                    wrapThemeChange(() => {
+                        const { theme } = get()
+                        const config = registeredThemes[theme]
+                        if (config && !config.modes.includes(newMode)) {
+                            return
+                        }
+
+                        applyThemeToDom(theme, newMode)
+                        set({ mode: newMode })
+                    }, newMode)
+                },
+            }
+        },
         {
             name: "game-agent-theme-storage",
             onRehydrateStorage: () => (state) => {

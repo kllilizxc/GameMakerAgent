@@ -9,7 +9,7 @@ import { Button } from "@heroui/react"
 import { TaskSteps } from "./TaskSteps"
 import { useConfirm } from "@/hooks/useConfirm"
 import { renderUIPart } from "../ui-parts/UIRegistry"
-import { ChevronDown, Brain, AlertCircle } from "lucide-react"
+import { ChevronDown, Brain } from "lucide-react"
 import "./MessageItem.scss"
 
 interface MessageItemProps {

@@ -28,6 +28,7 @@ interface SessionState {
   draftPrompt: string | null
   draftAttachments: string[] | null
   reconnectTimer: ReturnType<typeof setTimeout> | null
+  isRewinding: boolean
 
   loadMoreMessages: () => void
   fetchTemplates: () => void
@@ -74,6 +75,7 @@ export const useSessionStore = create<SessionState>()(
       draftPrompt: null,
       draftAttachments: null,
       reconnectTimer: null,
+      isRewinding: false,
 
       fetchTemplates: async () => {
         try {
@@ -414,6 +416,7 @@ export const useSessionStore = create<SessionState>()(
       rewind: async (messageId: string, edit?: boolean) => {
         const { sessionId, messages } = get()
         if (!sessionId) return
+        set({ isRewinding: true })
         try {
           if (edit) {
             const msg = messages.find(m => m.id === messageId)
@@ -442,6 +445,8 @@ export const useSessionStore = create<SessionState>()(
           }
         } catch (e) {
           console.error("Failed to rewind session:", e)
+        } finally {
+          set({ isRewinding: false })
         }
       },
 
