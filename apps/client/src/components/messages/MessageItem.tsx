@@ -52,6 +52,7 @@ function RewindButton({ messageId }: { messageId: string }) {
 
 function ReasoningBlock({ text }: { text: string }) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const previewText = text.replace(/\n/g, " ").slice(0, 80).trim() + (text.length > 80 ? "..." : "")
 
   return (
     <div className="reasoning-block border-l-2 border-primary/30 px-3 py-2 my-2 bg-muted/30 rounded-r-md">
@@ -59,9 +60,16 @@ function ReasoningBlock({ text }: { text: string }) {
         onClick={() => setIsExpanded(!isExpanded)}
         className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left"
       >
-        <Brain className="w-3.5 h-3.5" />
-        <span className="font-medium italic">Thinking</span>
-        <ChevronDown className={cn("w-3.5 h-3.5 ml-auto transition-transform duration-200", isExpanded && "rotate-180")} />
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Brain className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="font-medium italic flex-shrink-0">Thinking</span>
+          {!isExpanded && (
+            <span className="text-[10px] text-muted-foreground/60 truncate italic ml-1 max-w-[200px]">
+              {previewText}
+            </span>
+          )}
+        </div>
+        <ChevronDown className={cn("w-3.5 h-3.5 ml-auto flex-shrink-0 transition-transform duration-200", isExpanded && "rotate-180")} />
       </button>
       <AnimatePresence>
         {isExpanded && (
