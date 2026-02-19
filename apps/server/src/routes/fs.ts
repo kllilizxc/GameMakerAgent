@@ -33,7 +33,7 @@ export const fsRoutes = new Elysia({ prefix: "/api/fs" })
         })
     })
     .post("/ack", async ({ body }) => {
-        const session = getSession(body.sessionId)
+        const session = await getSession(body.sessionId)
         if (session) {
             ackSeq(session, body.seq)
         }

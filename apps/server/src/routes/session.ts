@@ -56,7 +56,7 @@ export const sessionRoutes = new Elysia()
         })
     })
     .post("/api/messages/list", async ({ body, set }) => {
-        const session = getSession(body.sessionId)
+        const session = await getSession(body.sessionId)
         if (!session) {
             set.status = 404
             return { error: "Session not found" }
@@ -86,7 +86,7 @@ export const sessionRoutes = new Elysia()
         })
     })
     .post("/api/session/rewind", async ({ body, set }) => {
-        const session = getSession(body.sessionId)
+        const session = await getSession(body.sessionId)
         if (!session?.opencodeSessionId) {
             set.status = 404
             return { error: "Session not found or not initialized" }

@@ -210,8 +210,8 @@ export async function loadSession(id: string): Promise<Session | undefined> {
   }
 }
 
-export function getSession(id: string): Session | undefined {
-  return sessions.get(id)
+export async function getSession(id: string): Promise<Session | undefined> {
+  return await loadSession(id)
 }
 
 export async function destroySession(id: string): Promise<void> {

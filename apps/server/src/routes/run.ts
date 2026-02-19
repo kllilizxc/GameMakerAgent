@@ -4,13 +4,10 @@ import { executeRun, cancelRun } from "../agent/runner"
 
 export const runRoutes = new Elysia({ prefix: "/api/run" })
     .post("/start", async ({ body, set }) => {
-        let session = getSession(body.sessionId)
+        const session = await getSession(body.sessionId)
         if (!session) {
-            session = await loadSession(body.sessionId)
-            if (!session) {
-                set.status = 404
-                return { error: "Session not found" }
-            }
+            set.status = 404
+            return { error: "Session not found" }
         }
 
         if (session.currentRunId) {
@@ -103,7 +100,7 @@ export const runRoutes = new Elysia({ prefix: "/api/run" })
         })
     })
     .post("/cancel", async ({ body, set }) => {
-        const session = getSession(body.sessionId)
+        const session = await getSession(body.sessionId)
         if (!session) {
             set.status = 404
             return { error: "Session not found" }
