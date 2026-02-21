@@ -5,12 +5,13 @@ import type { Message } from "@/types/session"
 import { useSessionStore } from "@/stores/session"
 import { NodeRenderer } from "markstream-react"
 import { Undo2, ZoomIn } from "lucide-react"
-import { Button, Popover } from "@heroui/react"
+import { Button, Modal } from "@heroui/react"
 import { TaskSteps } from "./TaskSteps"
 import { useConfirm } from "@/hooks/useConfirm"
 import { renderUIPart } from "../ui-parts/UIRegistry"
 import { ChevronDown, Brain } from "lucide-react"
 import "./MessageItem.scss"
+import { IconButton } from "../ui/IconButton"
 
 interface MessageItemProps {
   message: Message
@@ -98,6 +99,7 @@ function ReasoningBlock({ text }: { text: string }) {
 export const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
   const isUser = message.role === "user"
   const isAgent = message.role === "agent"
+  const [scaledImageUrl, setScaledImageUrl] = useState<string | null>(null)
 
   const hasSummary = Array.isArray(message.metadata?.summary) && message.metadata.summary.length > 0
   const hasTextOrReasoning = (message.parts || []).some((part) => {
@@ -121,6 +123,9 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
     "rounded-lg overflow-hidden w-fit max-w-full",
     isUser ? "ml-8" : ""
   ), [isUser])
+
+  const isScaleOpen = scaledImageUrl !== null
+  const scaledIsPng = scaledImageUrl ? isPngUrl(scaledImageUrl) : false
 
   return (
     <div className={cn(
@@ -173,32 +178,9 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
                   loading="lazy"
                 />
 
-                <Popover>
-                  <Popover.Trigger
-                    tabIndex={0}
-                    aria-label="Scale image"
-                    title="Scale image"
-                    className={cn(
-                      "absolute top-1 right-1 z-10 flex h-7 w-7 items-center justify-center rounded-md border border-border bg-overlay/70 text-muted-foreground shadow-sm backdrop-blur transition-colors",
-                      "hover:bg-overlay hover:text-foreground",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                    )}
-                  >
-                    <ZoomIn className="h-4 w-4" />
-                  </Popover.Trigger>
-                  <Popover.Content placement="top" offset={8} className="p-0">
-                    <Popover.Dialog className="outline-none p-2">
-                      <div className={cn("rounded-lg overflow-hidden", isPngUrl(part.url) && "image-grid")}>
-                        <img
-                          src={part.url}
-                          alt="Scaled preview"
-                          className="max-w-[80vw] max-h-[70vh] object-contain"
-                          loading="lazy"
-                        />
-                      </div>
-                    </Popover.Dialog>
-                  </Popover.Content>
-                </Popover>
+                <IconButton variant="solid" className="absolute top-1 right-1 z-10" size="sm" onClick={() => setScaledImageUrl(part.url!)}>
+                  <ZoomIn className="h-4 w-4" />
+                </IconButton>
               </div>
             )}
             {part.type === "ui" && part.ui && (
@@ -213,6 +195,33 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
       <div className={cn("absolute", "-top-4 -right-2")}>
         {isUser && <RewindButton messageId={message.id} />}
       </div>
+
+      <Modal
+        isOpen={isScaleOpen}
+        onOpenChange={(open) => {
+          if (!open) setScaledImageUrl(null)
+        }}
+      >
+        <Modal.Backdrop
+          variant="blur"
+          className="bg-linear-to-t from-black/80 via-black/40 to-transparent dark:from-background/80 dark:via-background/40 backdrop-blur-xl"
+        >
+          <Modal.Container placement="center">
+            <Modal.Dialog className="outline-none !bg-transparent !shadow-none !p-0 !w-auto !max-w-none">
+              <div className={cn("rounded-lg overflow-hidden", scaledIsPng && "image-grid")}>
+                {scaledImageUrl && (
+                  <img
+                    src={scaledImageUrl}
+                    alt="Scaled preview"
+                    className="max-w-[90vw] max-h-[80vh] object-contain"
+                    loading="lazy"
+                  />
+                )}
+              </div>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
     </div>
   )
 })

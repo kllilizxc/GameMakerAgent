@@ -18,7 +18,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
                     {
                         "hover:bg-accent hover:text-accent-foreground": variant === "ghost",
                         "border border-input bg-background hover:bg-accent hover:text-accent-foreground": variant === "outline",
-                        "bg-primary text-primary-foreground hover:bg-primary/90": variant === "solid",
+                        "bg-secondary text-primary-foreground hover:bg-primary/90": variant === "solid",
                         "h-8 w-8 p-0": size === "sm",
                         "h-10 w-10 p-2": size === "md",
                         "h-12 w-12 p-3": size === "lg",
