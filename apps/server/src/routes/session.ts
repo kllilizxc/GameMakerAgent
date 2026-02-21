@@ -31,6 +31,23 @@ export const sessionRoutes = new Elysia()
                 limit: MSG_PAGE_SIZE_INITIAL
             })
             messages = transformMessages(ocMessages)
+            const hasMore = ocMessages.length === MSG_PAGE_SIZE_INITIAL
+
+            return {
+                type: "session/created",
+                sessionId: session.id,
+                engineId: session.engineId,
+                templateId: session.templateId,
+                todos,
+                snapshot: {
+                    files,
+                    seq: nextSeq(session)
+                },
+                messages: {
+                    list: messages,
+                    hasMore
+                }
+            }
         }
 
         return {
@@ -45,7 +62,7 @@ export const sessionRoutes = new Elysia()
             },
             messages: {
                 list: messages,
-                hasMore: messages.length === MSG_PAGE_SIZE_INITIAL
+                hasMore: false
             }
         }
     }, {
@@ -63,6 +80,7 @@ export const sessionRoutes = new Elysia()
         }
 
         let result: any[] = []
+        let hasMore = false
         if (session.opencodeSessionId) {
             const ocMessages = await Session.messages({
                 sessionID: session.opencodeSessionId,
@@ -70,13 +88,14 @@ export const sessionRoutes = new Elysia()
                 offset: body.skip,
             })
             result = transformMessages(ocMessages)
+            hasMore = ocMessages.length === body.limit
         }
 
         return {
             type: "messages/list",
             sessionId: session.id,
             messages: result,
-            hasMore: result.length === body.limit,
+            hasMore,
         }
     }, {
         body: t.Object({

@@ -387,7 +387,8 @@ export const useSessionStore = create<SessionState>()(
 
         set({ isLoadingMore: true })
         try {
-          const data = await fetchMessages(sessionId, MSG_PAGE_SIZE_DEFAULT, messages.length)
+          const skip = (messages || []).filter((m) => !m.synthetic).length
+          const data = await fetchMessages(sessionId, MSG_PAGE_SIZE_DEFAULT, skip)
           if (data && data.messages) {
             handleServerMessage({
               type: "messages/list",
@@ -466,6 +467,7 @@ function processLoadedMessages(messages: any[]): Message[] {
     parts: pm.parts,
     streaming: false,
     timestamp: pm.timestamp,
+    synthetic: pm.synthetic,
     metadata: pm.metadata,
     activities: pm.activities?.map((a: any) => ({
       ...a,

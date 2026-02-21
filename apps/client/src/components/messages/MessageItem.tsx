@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils"
 import type { Message } from "@/types/session"
 import { useSessionStore } from "@/stores/session"
 import { NodeRenderer } from "markstream-react"
-import { Undo2 } from "lucide-react"
-import { Button } from "@heroui/react"
+import { Undo2, ZoomIn } from "lucide-react"
+import { Button, Popover } from "@heroui/react"
 import { TaskSteps } from "./TaskSteps"
 import { useConfirm } from "@/hooks/useConfirm"
 import { renderUIPart } from "../ui-parts/UIRegistry"
@@ -14,6 +14,12 @@ import "./MessageItem.scss"
 
 interface MessageItemProps {
   message: Message
+}
+
+function isPngUrl(url: string): boolean {
+  const lower = url.toLowerCase()
+  if (lower.startsWith("data:image/png")) return true
+  return /\.png(\?|#|$)/i.test(lower)
 }
 
 /** Isolated rewind button — subscribes to status independently so streaming updates don't re-render the message bubble */
@@ -93,6 +99,15 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
   const isUser = message.role === "user"
   const isAgent = message.role === "agent"
 
+  const hasSummary = Array.isArray(message.metadata?.summary) && message.metadata.summary.length > 0
+  const hasTextOrReasoning = (message.parts || []).some((part) => {
+    if (part.type === "text") return !!part.text?.trim()
+    if (part.type === "reasoning") return !!part.text?.trim()
+    return false
+  })
+  const hasFallbackContent = (!message.parts || message.parts.length === 0) && !!message.content?.trim()
+  const showBubble = message.role === "error" || hasSummary || hasTextOrReasoning || hasFallbackContent
+
   const bubbleClass = useMemo(() => cn(
     "rounded-lg py-3 text-sm w-full",
     isUser
@@ -115,46 +130,75 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
     )}>
       <div className={cn("flex flex-col w-full overflow-x-auto", isUser ? "items-end" : "items-start")}>
         {/* Main content block: metadata and text parts */}
-        <div className={bubbleClass}>
-          {message.metadata?.summary && (
-            <TaskSteps steps={message.metadata.summary} />
-          )}
-          <div className={cn("flex flex-col gap-2 overflow-x-hidden", isUser && "prose prose-sm prose-invert max-w-none overflow-x-auto")}>
-            {message.parts && message.parts.length > 0 ? (
-              message.parts
-                .filter(part => part.type === "text" || part.type === "reasoning")
-                .map((part, i) => (
-                  <div key={i}>
-                    {part.type === "text" && part.text && (
-                      <NodeRenderer content={part.text} final={!message.streaming} />
-                    )}
-                    {part.type === "reasoning" && part.text && (
-                      <ReasoningBlock text={part.text} />
-                    )}
-                  </div>
-                ))
-            ) : (
-              // Fallback for old messages
-              isAgent ? (
-                <NodeRenderer content={message.content} final={!message.streaming} />
-              ) : (
-                message.content
-              )
+        {showBubble && (
+          <div className={bubbleClass}>
+            {message.metadata?.summary && (
+              <TaskSteps steps={message.metadata.summary} />
             )}
+            <div className={cn("flex flex-col gap-2 overflow-x-hidden", isUser && "prose prose-sm prose-invert max-w-none overflow-x-auto")}>
+              {message.parts && message.parts.length > 0 ? (
+                message.parts
+                  .filter(part => part.type === "text" || part.type === "reasoning")
+                  .map((part, i) => (
+                    <div key={i}>
+                      {part.type === "text" && part.text && (
+                        <NodeRenderer content={part.text} final={!message.streaming} />
+                      )}
+                      {part.type === "reasoning" && part.text && (
+                        <ReasoningBlock text={part.text} />
+                      )}
+                    </div>
+                  ))
+              ) : (
+                // Fallback for old messages
+                isAgent ? (
+                  <NodeRenderer content={message.content} final={!message.streaming} />
+                ) : (
+                  message.content
+                )
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Separate blocks for images and UI */}
         {message.parts && message.parts.length > 0 && message.parts.map((part, i) => (
           <div key={i}>
             {part.type === "image" && part.url && (
-              <div className={imageBlockClass}>
+              <div className={cn(imageBlockClass, isPngUrl(part.url) && "image-grid", "relative")}>
                 <img
                   src={part.url}
                   alt="attachment"
                   className="max-w-full rounded-md border border-border shadow-sm"
                   loading="lazy"
                 />
+
+                <Popover>
+                  <Popover.Trigger
+                    tabIndex={0}
+                    aria-label="Scale image"
+                    title="Scale image"
+                    className={cn(
+                      "absolute top-1 right-1 z-10 flex h-7 w-7 items-center justify-center rounded-md border border-border bg-overlay/70 text-muted-foreground shadow-sm backdrop-blur transition-colors",
+                      "hover:bg-overlay hover:text-foreground",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    )}
+                  >
+                    <ZoomIn className="h-4 w-4" />
+                  </Popover.Trigger>
+                  <Popover.Content placement="top" offset={8} className="p-0">
+                    <Popover.Dialog className="outline-none p-2">
+                      <div className={cn("rounded-lg overflow-hidden", isPngUrl(part.url) && "image-grid")}>
+                        <img
+                          src={part.url}
+                          alt="Scaled preview"
+                          className="max-w-[80vw] max-h-[70vh] object-contain"
+                          loading="lazy"
+                        />
+                      </div>
+                    </Popover.Dialog>
+                  </Popover.Content>
+                </Popover>
               </div>
             )}
             {part.type === "ui" && part.ui && (
@@ -172,4 +216,3 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
     </div>
   )
 })
-

@@ -15,6 +15,8 @@ export interface Message {
   parts?: MessagePart[]
   streaming?: boolean
   timestamp: number
+  /** True for client-only synthetic messages derived from tool output. */
+  synthetic?: boolean
   metadata?: {
     summary?: {
       id: string

@@ -36,10 +36,10 @@ export function initSessionManager() {
 
               if (fullMessage) {
                 const clientMsgs = transformMessages([fullMessage])
-                if (clientMsgs.length > 0) {
+                for (const clientMsg of clientMsgs) {
                   broadcast(session, {
                     type: "message/updated",
-                    message: clientMsgs[0]
+                    message: clientMsg
                   } as any)
                 }
               }
