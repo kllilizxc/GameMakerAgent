@@ -63,6 +63,7 @@ export async function genGridGuide(rows: number, cols: number, baseSize = 1024) 
 
     const cleanup = async (inputBuffer: Buffer): Promise<Buffer> => {
         const img = await Jimp.read(inputBuffer)
+        const padding = 1
 
         // We want to clear everything that IS NOT in the cell boxes
         // Effectively, clear the "gaps"
@@ -82,8 +83,8 @@ export async function genGridGuide(rows: number, cols: number, baseSize = 1024) 
             // But wait, the box width is cellW - gap*2.
             // So valid range for x is [cellStartX + gap, cellStartX + cellW - gap)
 
-            const validX = x >= (cellStartX + gap) && x < (cellStartX + cellW - gap)
-            const validY = y >= (cellStartY + gap) && y < (cellStartY + cellH - gap)
+            const validX = x >= (cellStartX + gap + padding) && x < (cellStartX + cellW - gap - padding)
+            const validY = y >= (cellStartY + gap + padding) && y < (cellStartY + cellH - gap - padding)
 
             if (!validX || !validY) {
                 // In gap/line region -> make transparent
