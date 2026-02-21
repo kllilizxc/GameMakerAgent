@@ -106,7 +106,7 @@ export async function removeGreenBackground(buffer: Buffer, threshold: number = 
     // Target green color: #00FF00
     const targetGreen = { r: 0, g: 255, b: 0 }
 
-    image.scan(0, 0, image.bitmap.width, image.bitmap.height, (x, y, idx) => {
+    image.scan(0, 0, image.bitmap.width, image.bitmap.height, (idx) => {
         const r = image.bitmap.data[idx + 0]
         const g = image.bitmap.data[idx + 1]
         const b = image.bitmap.data[idx + 2]

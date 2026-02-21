@@ -1,7 +1,6 @@
 
 import { OpenAI, toFile } from "openai"
 import { GoogleGenAI } from "@google/genai"
-import * as fs from "fs"
 
 export interface ImageGenerationOptions {
     apiKey?: string
