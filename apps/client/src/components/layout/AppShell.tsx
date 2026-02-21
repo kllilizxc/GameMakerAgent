@@ -5,6 +5,7 @@ import { WorkspaceArea } from "./WorkspaceArea"
 import { usePromptPanelAnimation } from "@/hooks/usePromptPanelAnimation"
 import { useResizable } from "@/hooks/useResizable"
 import { useFileSync } from "@/hooks/useFileSync"
+import { InitializingOverlay } from "./InitializingOverlay"
 
 export function AppShell() {
   const { layoutMode, isHiding, isEntering } = usePromptPanelAnimation()
@@ -23,7 +24,8 @@ export function AppShell() {
   const sidebarRef = useRef<HTMLElement>(null)
 
   return (
-    <div className="h-dvh w-full flex flex-row overflow-hidden relative">
+    <div className="h-dvh w-full flex flexRef = useRef<HTMLDivElement | null>(null)-row overflow-hidden relative">
+      <InitializingOverlay />
       {/* Sidebar/PromptPanel Container (Desktop) */}
       <aside
         ref={sidebarRef}
