@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto"
 import { watch } from "chokidar"
 import { readFile } from "node:fs/promises"
 import { relative } from "node:path"
@@ -8,6 +7,8 @@ import { getEngine } from "../engine/registry"
 import type { FsPatchOp, AgentEventMessage, FsPatchMessage } from "../protocol/messages"
 import { saveMetadata } from "../session/workspace"
 import { Perf } from "@game-agent/perf"
+import { isImageFile } from "@game-agent/common"
+import { run } from "@game-agent/agent"
 
 interface RunContext {
   session: Session
@@ -20,7 +21,9 @@ const activeRuns = new Map<string, RunContext>()
 export async function executeRun(
   session: Session,
   runId: string,
-  prompt: string
+  prompt: string,
+  attachments?: string[],
+  model?: string
 ): Promise<void> {
   const ctx: RunContext = { session, runId, aborted: false }
   activeRuns.set(runId, ctx)
@@ -29,7 +32,7 @@ export async function executeRun(
   const engine = getEngine(session.engineId)
 
   const watcher = watch(workspaceDir, {
-    ignored: /(^|[\/\\])(\.|node_modules|\.git)/,
+    ignored: /(^|[\/\\])(\.|node_modules|\.git|--temp-)/,
     persistent: true,
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
@@ -62,18 +65,32 @@ export async function executeRun(
   watcher.on("add", async (path: string) => {
     if (ctx.aborted) return
     const rel = relative(workspaceDir, path)
-    const content = await readFile(path, "utf-8").catch(() => null)
-    if (content !== null) {
-      queuePatch({ op: "write", path: rel, content })
+    if (isImageFile(rel)) {
+      const buffer = await readFile(path).catch(() => null)
+      if (buffer !== null) {
+        queuePatch({ op: "write", path: rel, content: buffer.toString("base64"), encoding: "base64" })
+      }
+    } else {
+      const content = await readFile(path, "utf-8").catch(() => null)
+      if (content !== null) {
+        queuePatch({ op: "write", path: rel, content })
+      }
     }
   })
 
   watcher.on("change", async (path: string) => {
     if (ctx.aborted) return
     const rel = relative(workspaceDir, path)
-    const content = await readFile(path, "utf-8").catch(() => null)
-    if (content !== null) {
-      queuePatch({ op: "write", path: rel, content })
+    if (isImageFile(rel)) {
+      const buffer = await readFile(path).catch(() => null)
+      if (buffer !== null) {
+        queuePatch({ op: "write", path: rel, content: buffer.toString("base64"), encoding: "base64" })
+      }
+    } else {
+      const content = await readFile(path, "utf-8").catch(() => null)
+      if (content !== null) {
+        queuePatch({ op: "write", path: rel, content })
+      }
     }
   })
 
@@ -92,16 +109,13 @@ export async function executeRun(
   })
 
   try {
-    // Dynamic import to avoid cycles if any
-    const { run } = await import("@game-agent/agent")
-
     const systemPrompt = engine.systemPrompt?.() ?? ""
 
     const agentTimer = Perf.time("agent", "llm-execute")
 
 
     // Pass opencode session ID if we have one from a previous run
-    const { result } = await run(workspaceDir, { prompt, system: systemPrompt, sessionId: session.opencodeSessionId }, (event) => {
+    const { result } = await run(workspaceDir, { prompt, attachments, system: systemPrompt, sessionId: session.opencodeSessionId, model }, (event) => {
       if (ctx.aborted) return
 
       console.log(`[runner] ${Date.now()} received event: ${event.type}`)
@@ -157,9 +171,22 @@ export async function executeRun(
   }
 }
 
-export function cancelRun(runId: string): boolean {
+export function cancelRun(runId: string, session?: Session): boolean {
   const ctx = activeRuns.get(runId)
   if (!ctx) return false
   ctx.aborted = true
+
+  // Also cancel in the internal opencode agent if we have a session ID
+  if (session?.opencodeSessionId) {
+    import("@game-agent/agent").then(async ({ SessionPrompt, Instance }) => {
+      await Instance.provide({
+        directory: session.workspaceDir,
+        fn: async () => {
+          SessionPrompt.cancel(session.opencodeSessionId!)
+        }
+      })
+    }).catch(err => console.error(`[runner] Failed to cancel opencode session ${session.opencodeSessionId}:`, err))
+  }
+
   return true
 }

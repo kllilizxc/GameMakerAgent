@@ -8,11 +8,12 @@ interface UseMessageScrollOptions {
     onLoadMore: () => void
     hasMore: boolean
     isLoadingMore: boolean
+    expanded: boolean
 }
 
 interface UseMessageScrollReturn {
-    scrollContainerRef: React.RefObject<HTMLDivElement>
-    contentRef: React.RefObject<HTMLDivElement>
+    scrollContainerRef: React.RefObject<HTMLDivElement | null>
+    contentRef: React.RefObject<HTMLDivElement | null>
     scrollToBottom: (behavior?: ScrollBehavior) => void
     isAtBottom: boolean
 }
@@ -71,12 +72,14 @@ export function useMessageScroll({
     onLoadMore,
     hasMore,
     isLoadingMore,
+    expanded
 }: UseMessageScrollOptions): UseMessageScrollReturn {
     const scrollContainerRef = useRef<HTMLDivElement | null>(null)
     const contentRef = useRef<HTMLDivElement | null>(null)
 
     // Scroll state
     const [isAtBottom, setIsAtBottom] = useState(true)
+    const isAtBottomRef = useRef(true)
 
     // Refs for tracking scroll position
     const prevScrollBottomRef = useRef(0)
@@ -94,6 +97,9 @@ export function useMessageScroll({
         const container = scrollContainerRef.current
         if (!container) return
 
+        isAtBottomRef.current = true
+        setIsAtBottom(true)
+
         if (behavior === "instant") {
             container.scrollTop = container.scrollHeight
         } else {
@@ -104,38 +110,55 @@ export function useMessageScroll({
         }
     }, [])
 
-    // Handle scroll event - track if at bottom & trigger load more (throttled with lodash)
-    const handleScroll = useMemo(
+    const maybeLoadMore = useMemo(
         () =>
             throttle(() => {
                 const container = scrollContainerRef.current
                 if (!container) return
 
-                const { scrollTop, scrollHeight, clientHeight } = container
-
-                // Check if at bottom (within threshold)
-                const distanceFromBottom = scrollHeight - clientHeight - scrollTop
-                setIsAtBottom(distanceFromBottom < BOTTOM_THRESHOLD)
-
-                // Trigger load more when near top
-                if (scrollTop < LOAD_MORE_THRESHOLD && hasMore && !isLoadingMore) {
+                if (container.scrollTop < LOAD_MORE_THRESHOLD && hasMore && !isLoadingMore) {
                     onLoadMore()
                 }
             }, SCROLL_THROTTLE_MS),
         [hasMore, isLoadingMore, onLoadMore]
     )
 
+    // Handle scroll event - immediately track if at bottom & trigger load more (throttled)
+    const handleScroll = useCallback(() => {
+        const container = scrollContainerRef.current
+        if (!container) return
+
+        const { scrollTop, scrollHeight, clientHeight } = container
+        const distanceFromBottom = scrollHeight - clientHeight - scrollTop
+        const atBottom = distanceFromBottom < BOTTOM_THRESHOLD
+
+        if (atBottom !== isAtBottomRef.current) {
+            isAtBottomRef.current = atBottom
+            setIsAtBottom(atBottom)
+        } else {
+            isAtBottomRef.current = atBottom
+        }
+
+        maybeLoadMore()
+    }, [maybeLoadMore])
+
+    useEffect(() => {
+        if (expanded) {
+            scrollToBottom()
+        }
+    }, [expanded, scrollToBottom])
+
     // Cleanup throttle on unmount
     useEffect(() => {
-        return () => handleScroll.cancel()
-    }, [handleScroll])
+        return () => maybeLoadMore.cancel()
+    }, [maybeLoadMore])
 
     // Attach scroll listener
     useEffect(() => {
         const container = scrollContainerRef.current
         if (!container) return
 
-        container.addEventListener("scroll", handleScroll)
+        container.addEventListener("scroll", handleScroll, { passive: true })
         return () => container.removeEventListener("scroll", handleScroll)
     }, [handleScroll])
 
@@ -171,17 +194,17 @@ export function useMessageScroll({
                 scrollToBottom("smooth")
             }
             // BEHAVIOR 3: Sticky scroll - if at bottom, scroll to bottom
-            else if (isAtBottom) {
+            else if (isAtBottomRef.current) {
                 scrollToBottom("instant")
             }
         }
         // Handle content updates (streaming) - sticky scroll
-        else if (isAtBottom) {
+        else if (isAtBottomRef.current) {
             scrollToBottom("instant")
         }
 
         updateRefs()
-    }, [messages, activities, isAtBottom, scrollToBottom, itemsPrepended, newMessageAtEnd, isNewUserMessage, updateRefs])
+    }, [messages, activities, scrollToBottom, itemsPrepended, newMessageAtEnd, isNewUserMessage, updateRefs])
 
     // ResizeObserver for content size changes (images loading, etc.)
     useEffect(() => {
@@ -189,8 +212,8 @@ export function useMessageScroll({
         if (!container) return
 
         const observer = new ResizeObserver(() => {
-            // Only auto-scroll if at bottom
-            if (isAtBottom) {
+            // Use ref to avoid re-creating observer when isAtBottom changes
+            if (isAtBottomRef.current) {
                 scrollToBottom("instant")
             }
         })
@@ -201,7 +224,7 @@ export function useMessageScroll({
         }
 
         return () => observer.disconnect()
-    }, [isAtBottom, scrollToBottom])
+    }, [scrollToBottom]) // scrollToBottom is stable (empty deps)
 
     return {
         scrollContainerRef,

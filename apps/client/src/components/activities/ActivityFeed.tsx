@@ -9,7 +9,7 @@ interface ActivityFeedProps {
 export function ActivityFeed({ activities }: ActivityFeedProps) {
   if (activities.length === 0) {
     return (
-      <div className="mt-6 p-4 bg-secondary/50 rounded-lg border border-border">
+      <div className="mt-6 p-4 bg-secondary rounded-lg border border-border">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 size={14} className="animate-spin" />
           <span>Starting agent...</span>

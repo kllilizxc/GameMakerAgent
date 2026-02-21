@@ -1,115 +1,82 @@
-import { useState, useRef, useEffect } from "react"
+import { useRef } from "react"
 import { cn } from "@/lib/utils"
 import { PromptPanel } from "./PromptPanel"
 import { WorkspaceArea } from "./WorkspaceArea"
-import { LoadingOverlay } from "./LoadingOverlay"
-import { useWebContainer } from "@/hooks/useWebContainer"
-import { useFilesStore } from "@/stores/files"
-import { usePreviewStore } from "@/stores/preview"
+import { usePromptPanelAnimation } from "@/hooks/usePromptPanelAnimation"
+import { useResizable } from "@/hooks/useResizable"
+import { useFileSync } from "@/hooks/useFileSync"
 
 export function AppShell() {
-  const [isMobile, setIsMobile] = useState(false)
-  const files = useFilesStore((s) => s.files)
-  const wcStatus = usePreviewStore((s) => s.status)
-  const hasBooted = useRef(false)
-  const prevFilesRef = useRef<Map<string, string>>(new Map())
+  const { layoutMode, isHiding, isEntering } = usePromptPanelAnimation()
 
-  const { boot, writeFiles, installDeps, startDevServer, applyFilePatch } = useWebContainer()
+  // Sync files store → WebContainer
+  useFileSync()
 
-  // Check if WebContainer is fully ready
-  const isWcReady = wcStatus === "running"
+  // Sidebar resize logic
+  const { width: sidebarWidth, isResizing, startResizing } = useResizable({
+    initialWidth: 320,
+    minWidth: 260,
+    maxWidth: 600,
+    storageKey: "sidebar-width",
+  })
 
-  // Boot WebContainer and sync files
-  useEffect(() => {
-    // Only boot if we have files (snapshot received)
-    if (files.size === 0) return
-
-    // Don't apply patches until WC is fully ready
-    if (!isWcReady && hasBooted.current) {
-      console.log("[wc] Skipping patch - not ready yet")
-      return
-    }
-
-    const syncFiles = async () => {
-      // First time - boot and write all files
-      if (!hasBooted.current) {
-        hasBooted.current = true
-        console.log("[wc] Booting WebContainer...")
-        await boot()
-
-        const fileObj: Record<string, string> = {}
-        files.forEach((content, path) => {
-          fileObj[path] = content
-        })
-
-        console.log("[wc] Writing initial files:", Object.keys(fileObj).length)
-        await writeFiles(fileObj)
-
-        console.log("[wc] Installing deps...")
-        await installDeps()
-
-        console.log("[wc] Starting dev server...")
-        await startDevServer()
-
-        prevFilesRef.current = new Map(files)
-        return
-      }
-
-      // Subsequent changes - apply patches
-      const prev = prevFilesRef.current
-
-      for (const [path, content] of files) {
-        if (prev.get(path) !== content) {
-          console.log("[wc] Applying patch:", path)
-          await applyFilePatch({ op: "write", path, content })
-        }
-      }
-
-      for (const path of prev.keys()) {
-        if (!files.has(path)) {
-          console.log("[wc] Deleting:", path)
-          await applyFilePatch({ op: "delete", path })
-        }
-      }
-
-      prevFilesRef.current = new Map(files)
-    }
-
-    syncFiles()
-  }, [files, isWcReady, boot, writeFiles, installDeps, startDevServer, applyFilePatch])
-
-  // Check for mobile on mount and resize
-  if (typeof window !== "undefined") {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768)
-    if (!isMobile && window.innerWidth < 768) checkMobile()
-    window.addEventListener("resize", checkMobile)
-  }
+  const sidebarRef = useRef<HTMLElement>(null)
 
   return (
-    <div
-      className={cn(
-        "h-dvh w-full flex",
-        isMobile ? "flex-col" : "flex-row"
-      )}
-    >
-      {/* Loading overlay */}
-      <LoadingOverlay />
+    <div className="h-dvh w-full flex flex-row overflow-hidden relative">
+      {/* Sidebar/PromptPanel Container (Desktop) */}
+      <aside
+        ref={sidebarRef}
+        className={cn(
+          "rounded-r-[16px] ease-in-out flex-shrink-0 flex flex-col z-50 overflow-visible shadow-lg relative",
+          isResizing ? "transition-none duration-0" : "transition-all duration-300",
+          (isHiding || isEntering) ? "-translate-x-full" : "translate-x-0",
+          (layoutMode === 'mobile')
+            ? "w-0 border-r-0"
+            : "border-r border-border" // Width handled by style
+        )}
+      >
+        {layoutMode === 'desktop' && (
+          <>
+            <div
+              className={cn(
+                "h-full flex flex-col"
+              )}
+              style={{ width: sidebarWidth }}
+            >
+              <PromptPanel mobile={false} />
+            </div>
 
-      {/* Desktop: Left panel | Mobile: rendered at bottom */}
-      {!isMobile && (
-        <aside className="w-80 border-r border-border flex-shrink-0 flex flex-col">
-          <PromptPanel />
-        </aside>
-      )}
+            {/* Resize Handle */}
+            <div
+              className={cn(
+                "absolute top-[45%] -right-[8px] w-[16px] h-[10%] rounded-[8px] bg-secondary border border-border shadow-sm cursor-col-resize z-50",
+              )}
+              onMouseDown={startResizing}
+              onTouchStart={startResizing}
+            />
+          </>
+        )}
+      </aside>
 
       {/* Main workspace area */}
-      <main className="flex-1 flex flex-col min-w-0 relative">
+      <main
+        className={cn(
+          "flex-1 flex flex-col min-w-0 relative bg-background",
+          isResizing && "pointer-events-none select-none" // Prevent iframe capture during resize
+        )}
+      >
         <WorkspaceArea />
 
-        {/* Mobile: Bottom prompt panel */}
-        {isMobile && (
-          <div className="absolute bottom-0 left-0 right-0 safe-bottom">
-            <PromptPanel mobile />
+        {/* Mobile Prompt Panel */}
+        {layoutMode === 'mobile' && (
+          <div
+            className={cn(
+              "fixed bottom-0 left-0 right-0 h-auto max-h-[85vh] bg-background border-t border-border rounded-t-xl shadow-2xl z-50 safe-bottom transition-all duration-500 ease-in-out",
+              (isHiding || isEntering) ? "translate-y-full" : "translate-y-0"
+            )}
+          >
+            <PromptPanel mobile={true} />
           </div>
         )}
       </main>

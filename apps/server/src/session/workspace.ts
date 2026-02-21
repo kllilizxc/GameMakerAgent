@@ -3,6 +3,7 @@ import { join, relative } from "node:path"
 import type { FileMap } from "../engine/adapter"
 import type { FsPatchOp } from "../protocol/messages"
 import { Perf } from "@game-agent/perf"
+import { isImageFile, FILE_SIZE_LIMIT_BINARY, FILE_SIZE_LIMIT_TEXT, isTempFile } from "@game-agent/common"
 
 const WORKSPACES_DIR = join(process.cwd(), "workspaces")
 
@@ -45,10 +46,10 @@ export async function deleteWorkspace(sessionId: string): Promise<void> {
   await rm(dir, { recursive: true, force: true })
 }
 
-export async function readWorkspaceFiles(sessionId: string): Promise<FileMap> {
+export async function readWorkspaceFiles(sessionId: string): Promise<Record<string, string | { content: string, encoding: "utf-8" | "base64" }>> {
   using timer = Perf.time("file", "read-workspace")
   const dir = workspacePath(sessionId)
-  const files: FileMap = {}
+  const files: Record<string, string | { content: string, encoding: "utf-8" | "base64" }> = {}
 
   async function walk(current: string) {
     const entries = await readdir(current, { withFileTypes: true })
@@ -58,10 +59,26 @@ export async function readWorkspaceFiles(sessionId: string): Promise<FileMap> {
         if (entry.name === "node_modules" || entry.name === ".git") continue
         await walk(full)
       } else {
+        if (isTempFile(entry.name)) continue
         const rel = relative(dir, full)
         const info = await stat(full)
-        if (info.size < 1024 * 100) {
-          files[rel] = await readFile(full, "utf-8")
+
+        // Check for binary extensions
+        const isBinary = isImageFile(rel)
+
+        // Limit size
+        const limit = isBinary ? FILE_SIZE_LIMIT_BINARY : FILE_SIZE_LIMIT_TEXT
+
+        if (info.size < limit) {
+          if (isBinary) {
+            const buffer = await readFile(full)
+            files[rel] = {
+              content: buffer.toString("base64"),
+              encoding: "base64"
+            }
+          } else {
+            files[rel] = await readFile(full, "utf-8")
+          }
         }
       }
     }
@@ -105,6 +122,8 @@ const METADATA_FILE = ".agent/metadata.json"
 export interface SessionMetadata {
   opencodeSessionId?: string
   templateId?: string
+  engineId?: string
+  leafId?: string
   version: number
 }
 

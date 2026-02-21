@@ -1,28 +1,39 @@
-import { useState } from "react"
+import { memo, useState, useEffect } from "react"
 import { useSessionStore } from "@/stores/session"
+import { useFilesStore } from "@/stores/files"
 import { usePromptSubmit } from "@/hooks/usePromptSubmit"
 import { PromptHeader } from "@/components/prompt/PromptHeader"
 import { PromptInput } from "@/components/prompt/PromptInput"
-import { MobilePromptPanel } from "@/components/prompt/MobilePromptPanel"
 import { MessageList } from "@/components/messages/MessageList"
 import { useMessageScroll } from "@/hooks/useMessageScroll"
+import { ChevronUp } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { ScrollShadow } from "@heroui/react"
 
 interface PromptPanelProps {
   mobile?: boolean
 }
 
-export function PromptPanel({ mobile }: PromptPanelProps) {
+export const PromptPanel = memo(function PromptPanel({ mobile }: PromptPanelProps) {
   const [expanded, setExpanded] = useState(!mobile)
-  const {
-    status,
-    messages,
-    activities,
-    sendPrompt,
-    interrupt,
-    loadMoreMessages,
-    hasMoreMessages,
-    isLoadingMore,
-  } = useSessionStore()
+
+  // Sync expanded state when screen size changes
+  useEffect(() => {
+    if (!mobile) {
+      setExpanded(true)
+    } else {
+      // Optional: collapse when switching TO mobile
+      // setExpanded(false)
+    }
+  }, [mobile])
+  const status = useSessionStore((s) => s.status)
+  const messages = useSessionStore((s) => s.messages)
+  const activities = useSessionStore((s) => s.activities)
+  const sendPrompt = useSessionStore((s) => s.sendPrompt)
+  const interrupt = useSessionStore((s) => s.interrupt)
+  const loadMoreMessages = useSessionStore((s) => s.loadMoreMessages)
+  const hasMoreMessages = useSessionStore((s) => s.hasMoreMessages)
+  const isLoadingMore = useSessionStore((s) => s.isLoadingMore)
 
   const isLoading = status === "running"
 
@@ -37,44 +48,65 @@ export function PromptPanel({ mobile }: PromptPanelProps) {
     onLoadMore: loadMoreMessages,
     hasMore: hasMoreMessages,
     isLoadingMore,
+    expanded
+    // isMobile not supported by hook, layout handles it
   })
 
-  // Mobile layout
-  if (mobile) {
-    return (
-      <MobilePromptPanel
-        value={input}
-        onChange={setInput}
-        onSubmit={handleSubmit}
-        isLoading={isLoading}
-        messages={messages}
-        expanded={expanded}
-        onToggleExpanded={() => setExpanded(!expanded)}
-      />
-    )
-  }
-
-  // Desktop layout
+  // Main render - unified for both mobile and desktop
   return (
-    <div className="flex flex-col h-full">
-      <PromptHeader />
-
-      {/* Messages - scroll container */}
-      <div
-        className="flex-1 overflow-y-auto overflow-x-hidden p-4 custom-scrollbar"
-        ref={scrollContainerRef}
-      >
-        <MessageList messages={messages} />
+    <div
+      className={cn(
+        "flex flex-col bg-gradient-to-b from-surface-tertiary via-surface-secondary to-surface",
+        mobile
+          ? "shadow-lg rounded-t-lg overflow-hidden h-auto"
+          : "h-full rounded-r-[16px]"
+      )}
+    >
+      {/* Desktop Header */}
+      <div className={cn(
+        "overflow-hidden",
+        mobile ? "h-0 opacity-0" : "h-auto opacity-100"
+      )}>
+        <PromptHeader />
       </div>
 
-      {/* Input */}
-      <PromptInput
-        value={input}
-        onChange={setInput}
-        onSubmit={handleSubmit}
-        isLoading={isLoading}
-        onInterrupt={interrupt}
-      />
+      {/* Mobile Toggle Handle */}
+      {mobile && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full h-8 flex items-center justify-center text-muted-foreground hover:text-foreground shrink-0 my-2"
+        >
+          <ChevronUp
+            size={20}
+            className={cn("transition-transform duration-300", expanded ? "rotate-180" : "rotate-0")}
+          />
+        </button>
+      )}
+
+      {/* Messages Area - Scrollable */}
+      <ScrollShadow
+        className={cn(
+          "overflow-y-auto overflow-x-hidden custom-scrollbar transition-height ease-in-out duration-300",
+          mobile ? "px-4" : "p-4 flex-1",
+          mobile && (expanded ? "h-[40vh] py-2" : "h-0 pointer-events-none p-0")
+        )}
+        ref={scrollContainerRef}
+        hideScrollBar
+      >
+        <MessageList messages={messages} />
+      </ScrollShadow>
+
+      {/* Input Area */}
+      <div className="shrink-0">
+        <PromptInput
+          value={input}
+          onChange={setInput}
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+          onInterrupt={interrupt}
+          onFocus={() => useFilesStore.getState().syncFiles()}
+        />
+      </div>
     </div>
   )
-}
+})

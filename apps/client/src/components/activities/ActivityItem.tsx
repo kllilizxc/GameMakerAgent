@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { memo, useState } from "react"
 import { Wrench, FileEdit, MessageSquare, ChevronRight, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Activity } from "@/types/session"
@@ -17,7 +17,7 @@ function formatFilePath(path: string): string {
   return path.replace(/([^\s"']*[\\/])?workspaces[\\/]ses_[^\\/]+[\\/]/g, "")
 }
 
-export function ActivityItem({ activity }: ActivityItemProps) {
+export const ActivityItem = memo(function ActivityItem({ activity }: ActivityItemProps) {
   const [expanded, setExpanded] = useState(false)
 
   const title = activity.type === "tool" && activity.data.title ? formatFilePath(activity.data.title) : ""
@@ -29,7 +29,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     (activity.type === "text" && activity.data.text && activity.data.text.length > 60)
 
   return (
-    <div className="flex items-start gap-2 p-2 bg-secondary/50 rounded text-xs text-muted-foreground">
+    <div className="flex items-start gap-2 p-2 bg-overlay rounded text-xs text-muted-foreground">
       {activity.type === "tool" && (
         <>
           <Wrench size={14} className="mt-0.5 flex-shrink-0 text-blue-500" />
@@ -103,4 +103,4 @@ export function ActivityItem({ activity }: ActivityItemProps) {
       )}
     </div>
   )
-}
+})

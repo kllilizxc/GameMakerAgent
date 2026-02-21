@@ -1,9 +1,22 @@
+export interface MessagePart {
+  type: "text" | "image" | "ui" | "reasoning"
+  text?: string
+  url?: string
+  ui?: {
+    name: string
+    props: Record<string, any>
+  }
+}
+
 export interface Message {
   id: string
-  role: "user" | "agent"
-  content: string
+  role: "user" | "agent" | "error"
+  content: string // Kept for backward compatibility/summary
+  parts?: MessagePart[]
   streaming?: boolean
   timestamp: number
+  /** True for client-only synthetic messages derived from tool output. */
+  synthetic?: boolean
   metadata?: {
     summary?: {
       id: string
@@ -37,12 +50,22 @@ export interface Activity {
     path?: string
     text?: string
   }
+  metadata?: {
+    todos?: {
+      id: string
+      content: string
+      status: string
+      priority: string
+    }[]
+    [key: string]: any
+  }
 }
 
 export interface FsPatch {
   op: "write" | "delete" | "mkdir"
   path: string
   content?: string
+  encoding?: "utf-8" | "base64"
 }
 
 export interface TemplateInfo {

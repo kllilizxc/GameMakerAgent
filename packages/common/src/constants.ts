@@ -1,2 +1,5 @@
 export const MSG_PAGE_SIZE_INITIAL = 20
 export const MSG_PAGE_SIZE_DEFAULT = 10
+
+export const FILE_SIZE_LIMIT_BINARY = 1024 * 1024 * 5 // 5MB
+export const FILE_SIZE_LIMIT_TEXT = 1024 * 100 // 100KB

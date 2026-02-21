@@ -54,3 +54,9 @@ workspaces/
 
 dist/
 apps/client/dist/
+
+# Unexpected environment artifacts
+/Cache/
+/CachedData/
+/CdchedData/
+/User/

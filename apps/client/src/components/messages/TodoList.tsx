@@ -1,11 +1,12 @@
 import { cn } from "@/lib/utils"
-import { useState } from "react"
+import { memo, useState } from "react"
+import { Check } from "lucide-react"
 
 interface TodoListProps {
     todos: Array<{ id: string; content: string; status: string; priority?: string }>
 }
 
-export function TodoList({ todos }: TodoListProps) {
+export const TodoList = memo(function TodoList({ todos }: TodoListProps) {
     const [isOpen, setIsOpen] = useState(true)
 
     if (!todos || todos.length === 0) return null
@@ -21,7 +22,7 @@ export function TodoList({ todos }: TodoListProps) {
             >
                 <span className="font-medium text-foreground flex items-center gap-2">
                     Todo List
-                    <span className="text-xs bg-muted px-1.5 py-0.5 rounded-full text-foreground/70">
+                    <span className="text-xs bg-muted px-1.5 py-0.5 rounded-full text-overlay">
                         {pending.length} pending
                     </span>
                 </span>
@@ -47,9 +48,7 @@ export function TodoList({ todos }: TodoListProps) {
                                         : "border-muted-foreground/30 bg-background"
                                 )}>
                                     {todo.status === "completed" && (
-                                        <svg viewBox="0 0 14 14" fill="none" className="h-2.5 w-2.5">
-                                            <path d="M11.6666 3.5L5.24992 9.91667L2.33325 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                        </svg>
+                                        <Check size={10} />
                                     )}
                                 </div>
                                 <div className={cn(
@@ -73,4 +72,4 @@ export function TodoList({ todos }: TodoListProps) {
             </div>
         </div>
     )
-}
+})

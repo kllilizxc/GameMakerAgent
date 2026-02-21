@@ -1,0 +1,41 @@
+    [data-theme="forest-light"] {
+        color-scheme: light;
+        --accent: oklch(0.5795 0.1259 152.42);
+        --accent-foreground: oklch(99.11% 0 0);
+        --background: oklch(97.02% 0.0185 131.68);
+        --border: oklch(90.00% 0.0185 131.68);
+        --danger: oklch(65.32% 0.2414 11.08);
+        --danger-foreground: oklch(99.11% 0 0);
+        --default: oklch(94.00% 0.0185 131.68);
+        --default-foreground: oklch(21.03% 0.0059 131.68);
+        --field-background: oklch(100.00% 0.0092 131.68);
+        --field-foreground: oklch(21.03% 0.0185 131.68);
+        --field-placeholder: oklch(55.17% 0.0370 131.68);
+        --focus: oklch(62.04% 0.1950 13 1.68);
+        --foreground: oklch(21.03% 0.0185 131.68);
+        --muted: oklch(55.17% 0.0370 131.68);
+        --overlay: oklch(100.00% 0.0055 131.68);
+        --overlay-foreground: oklch(21.03% 0.0185 131.68);
+        --scrollbar: oklch(87.10% 0.0185 131.68);
+        --segment: oklch(100.00% 0.0185 131.68);
+        --segment-foreground: oklch(21.03% 0.0185 131.68);
+        --separator: oklch(92.00% 0.0185 131.68);
+        --success: oklch(73.29% 0.2007 136.15);
+        --success-foreground: oklch(21.03% 0.0059 136.15);
+        --surface: oklch(100.00% 0.0092 131.68);
+        --surface-foreground: oklch(21.03% 0.0185 131.68);
+        --surface-secondary: oklch(95.24% 0.0148 131.68);
+        --surface-secondary-foreground: oklch(21.03% 0.0185 131.68);
+        --surface-tertiary: oklch(93.73% 0.0148 131.68);
+        --surface-tertiary-foreground: oklch(21.03% 0.0185 131.68);
+        --warning: oklch(78.19% 0.1644 57.67);
+        --warning-foreground: oklch(21.03% 0.0059 57.67);
+
+        /* Border Radius */
+        --radius: 0.5rem;
+        --field-radius: 0.75rem;
+
+        /* Font Family */
+        /* Make sure to load Inter font in your app */
+        --font-sans: var(--font-inter);
+    }

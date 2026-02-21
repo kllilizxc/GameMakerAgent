@@ -1,16 +1,20 @@
+import { useState, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { useFilesStore } from "@/stores/files"
-import { File, Folder } from "lucide-react"
+import { File, Folder, ChevronRight, ChevronDown } from "lucide-react"
 
 export function FileTree() {
-  const { files, selectedFile, selectFile } = useFilesStore()
-  const fileList = Array.from(files.keys()).sort()
+  const files = useFilesStore((s) => s.files)
+  const selectedFile = useFilesStore((s) => s.selectedFile)
+  const selectFile = useFilesStore((s) => s.selectFile)
 
-  // Group files by directory
-  const tree = buildTree(fileList)
+  const tree = useMemo(() => {
+    const fileList = Array.from(files.keys()).sort()
+    return buildTree(fileList)
+  }, [files])
 
   return (
-    <div className="py-2 text-sm">
+    <div className="py-2 text-sm select-none">
       <TreeNode node={tree} selectedFile={selectedFile} onSelect={selectFile} />
     </div>
   )
@@ -73,6 +77,8 @@ function TreeNode({
   onSelect: (path: string | null) => void
   depth?: number
 }) {
+  const [isOpen, setIsOpen] = useState(depth < 1) // Expand first level by default
+
   if (node.path === "") {
     // Root node, just render children
     return (
@@ -93,30 +99,50 @@ function TreeNode({
   const isSelected = selectedFile === node.path
   const Icon = node.isDir ? Folder : File
 
+  const handleClick = () => {
+    if (node.isDir) {
+      setIsOpen(!isOpen)
+    } else {
+      onSelect(node.path)
+    }
+  }
+
   return (
     <div>
       <button
-        onClick={() => !node.isDir && onSelect(node.path)}
+        onClick={handleClick}
         className={cn(
-          "w-full flex items-center gap-2 px-2 py-1 hover:bg-secondary text-left",
+          "group w-full flex items-center gap-1.5 px-2 py-1 hover:bg-secondary text-left transition-colors",
           isSelected && "bg-secondary text-foreground",
-          !isSelected && "text-muted-foreground"
+          !isSelected && "text-muted-foreground hover:text-foreground"
         )}
-        style={{ paddingLeft: `${depth * 12 + 8}px` }}
+        style={{ paddingLeft: `${depth * 12 + 4}px` }}
       >
-        <Icon size={14} className="flex-shrink-0" />
+        <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+          {node.isDir && (
+            isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />
+          )}
+        </span>
+        <Icon size={14} className={cn(
+          "flex-shrink-0",
+          node.isDir ? "text-blue-400" : "text-muted-foreground"
+        )} />
         <span className="truncate">{node.name}</span>
       </button>
-      {node.isDir &&
-        node.children.map((child) => (
-          <TreeNode
-            key={child.path}
-            node={child}
-            selectedFile={selectedFile}
-            onSelect={onSelect}
-            depth={depth + 1}
-          />
-        ))}
+
+      {node.isDir && isOpen && (
+        <div className="flex flex-col">
+          {node.children.map((child) => (
+            <TreeNode
+              key={child.path}
+              node={child}
+              selectedFile={selectedFile}
+              onSelect={onSelect}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

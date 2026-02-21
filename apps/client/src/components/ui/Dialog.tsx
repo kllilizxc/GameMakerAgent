@@ -1,57 +1,76 @@
 import * as React from "react"
+import { Modal } from "@heroui/react"
 import { cn } from "@/lib/utils"
+
+interface DialogProps {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    children: React.ReactNode
+    className?: string
+}
 
 const Dialog = ({
     open,
     onOpenChange,
     children,
-}: {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    children: React.ReactNode
-}) => {
-    if (!open) return null
-
+    className
+}: DialogProps) => {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div
-                className="fixed inset-0 bg-black/80 backdrop-blur-sm"
-                onClick={() => onOpenChange(false)}
-            />
-            <div className="relative z-50 w-full max-w-lg p-6 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-                {children}
-            </div>
-        </div>
+        <Modal
+            isOpen={open}
+            onOpenChange={onOpenChange}
+        >
+            <Modal.Backdrop
+                variant="blur"
+                className="bg-linear-to-t from-black/80 via-black/40 to-transparent dark:from-background/80 dark:via-background/40"
+            >
+                <Modal.Container className={cn(className)}>
+                    <Modal.Dialog className="outline-none sm:max-w-[400px]">
+                        <Modal.CloseTrigger />
+                        {children}
+                    </Modal.Dialog>
+                </Modal.Container>
+            </Modal.Backdrop>
+        </Modal>
     )
 }
 
-const DialogContent = ({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-    <div className={cn("grid gap-4", className)} {...props}>
+const DialogHeader = ({ className, children, ...props }: React.ComponentProps<typeof Modal.Header>) => (
+    <Modal.Header className={cn("flex flex-col gap-3", className)} {...props}>
         {children}
-    </div>
+    </Modal.Header>
 )
 
-const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-    <div className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)} {...props} />
+const DialogIcon = ({ className, children, ...props }: React.ComponentProps<typeof Modal.Icon>) => (
+    <Modal.Icon className={cn("bg-secondary text-foreground", className)} {...props}>
+        {children}
+    </Modal.Icon>
 )
 
-const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-    <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
-)
-
-const DialogTitle = ({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h3 className={cn("text-lg font-semibold leading-none tracking-tight text-white", className)} {...props} />
+const DialogTitle = ({ className, ...props }: React.ComponentProps<typeof Modal.Heading>) => (
+    <Modal.Heading className={cn("text-lg font-semibold leading-none tracking-tight text-foreground", className)} {...props} />
 )
 
 const DialogDescription = ({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (
-    <p className={cn("text-sm text-zinc-400", className)} {...props} />
+    <p className={cn("text-sm text-muted-foreground font-normal", className)} {...props} />
+)
+
+const DialogContent = ({ className, children, ...props }: React.ComponentProps<typeof Modal.Body>) => (
+    <Modal.Body className={cn(className)} {...props}>
+        {children}
+    </Modal.Body>
+)
+
+const DialogFooter = ({ className, ...props }: React.ComponentProps<typeof Modal.Footer>) => (
+    <Modal.Footer className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
 )
 
 export {
     Dialog,
-    DialogContent,
     DialogHeader,
-    DialogFooter,
+    DialogIcon,
     DialogTitle,
     DialogDescription,
+    DialogContent,
+    DialogFooter,
 }

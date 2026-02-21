@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils"
 import { Message } from "@/types/session"
-import { useState } from "react"
+import { memo, useState } from "react"
 
 interface TaskStepsProps {
     steps: NonNullable<NonNullable<Message["metadata"]>["summary"]>
 }
 
-export function TaskSteps({ steps }: TaskStepsProps) {
+export const TaskSteps = memo(function TaskSteps({ steps }: TaskStepsProps) {
     const [isOpen, setIsOpen] = useState(true)
 
     if (!steps || steps.length === 0) return null
@@ -58,4 +58,4 @@ export function TaskSteps({ steps }: TaskStepsProps) {
             )}
         </div>
     )
-}
+})

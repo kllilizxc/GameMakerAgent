@@ -2,7 +2,7 @@ import { useState, FormEvent, useEffect } from "react"
 import { useSessionStore } from "@/stores/session"
 
 interface UsePromptSubmitOptions {
-  onSubmit: (prompt: string) => void
+  onSubmit: (prompt: string, attachments?: string[]) => void
   isDisabled?: boolean
 }
 
@@ -11,7 +11,8 @@ interface UsePromptSubmitOptions {
  */
 export function usePromptSubmit({ onSubmit, isDisabled = false }: UsePromptSubmitOptions) {
   const [input, setInput] = useState("")
-  const { draftPrompt, setDraftPrompt } = useSessionStore()
+  const draftPrompt = useSessionStore((s) => s.draftPrompt)
+  const setDraftPrompt = useSessionStore((s) => s.setDraftPrompt)
 
   useEffect(() => {
     if (draftPrompt) {
@@ -20,11 +21,11 @@ export function usePromptSubmit({ onSubmit, isDisabled = false }: UsePromptSubmi
     }
   }, [draftPrompt, setDraftPrompt])
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = (e: FormEvent, attachments?: string[]) => {
     e.preventDefault()
-    if (!input.trim() || isDisabled) return
+    if ((!input.trim() && (!attachments || attachments.length === 0)) || isDisabled) return
 
-    onSubmit(input.trim())
+    onSubmit(input.trim(), attachments)
     setInput("")
   }
 

@@ -1,14 +1,27 @@
-import { Send, Square } from "lucide-react"
-import { FormEvent, useRef, useEffect } from "react"
+import { Square, X, Plus, Mic, ArrowRight, ChevronUp } from "lucide-react"
+import { useSessionStore } from "@/stores/session"
+import { useSettingsStore } from "@/stores/settings"
+import { FormEvent, useRef, useEffect, useState, useCallback, useMemo, ChangeEvent } from "react"
+import { validateImage, resizeImage, processImageUrl } from "@/lib/image-utils"
+import { useError } from "@/hooks/useError"
+import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown"
+import { IconButton } from "../ui/IconButton"
 
 interface PromptInputProps {
   value: string
   onChange: (value: string) => void
-  onSubmit: (e: FormEvent) => void
+  onSubmit: (e: FormEvent, attachments?: string[]) => void
   onInterrupt?: () => void
+  onFocus?: () => void
   isLoading?: boolean
   placeholder?: string
   disabled?: boolean
+}
+
+interface Attachment {
+  file: File
+  preview: string
+  base64?: string
 }
 
 export function PromptInput({
@@ -16,12 +29,24 @@ export function PromptInput({
   onChange,
   onSubmit,
   onInterrupt,
+  onFocus,
   isLoading = false,
-  placeholder = "Describe your game...",
+  placeholder = "Describe your game here",
   disabled = false,
 }: PromptInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const canSubmit = value.trim().length > 0 && !isLoading && !disabled
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const models = useSettingsStore((s) => s.models)
+  const activeModel = useSettingsStore((s) => s.activeModel)
+  const setActiveModel = useSettingsStore((s) => s.setActiveModel)
+  const { error: showError } = useError()
+
+  const canSubmit = (value.trim().length > 0 || attachments.length > 0) && !isLoading && !disabled && !isProcessing
+
+
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -30,46 +55,236 @@ export function PromptInput({
     }
   }, [value])
 
+  // Cleanup object URLs
+  useEffect(() => {
+    return () => {
+      attachments.forEach(a => URL.revokeObjectURL(a.preview))
+    }
+  }, [attachments])
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       if (canSubmit) {
-        onSubmit(e as any)
+        handleSubmit(e)
       }
     }
   }
 
+  const handleFileSelect = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setIsProcessing(true)
+      const newAttachments: Attachment[] = []
+
+      try {
+        for (const file of Array.from(e.target.files)) {
+          const errorMsg = validateImage(file)
+          if (errorMsg) {
+            console.error(errorMsg)
+            await showError({
+              title: "Invalid Image",
+              description: errorMsg,
+            })
+            continue
+          }
+
+          const preview = URL.createObjectURL(file)
+          const base64 = await resizeImage(file)
+
+          newAttachments.push({
+            file,
+            preview,
+            base64
+          })
+        }
+
+        setAttachments(prev => [...prev, ...newAttachments])
+      } catch (err) {
+        console.error("Failed to process image", err)
+      } finally {
+        setIsProcessing(false)
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ""
+        }
+      }
+    }
+  }, [showError])
+
+  const removeAttachment = useCallback((index: number) => {
+    setAttachments(prev => {
+      const newAttachments = [...prev]
+      URL.revokeObjectURL(newAttachments[index].preview)
+      newAttachments.splice(index, 1)
+      return newAttachments
+    })
+  }, [])
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!canSubmit) return
+
+    const { sessionId } = useSessionStore.getState()
+    if (!sessionId) {
+      showError({ title: "Session error", description: "No active session found" })
+      return
+    }
+
+    setIsProcessing(true)
+    try {
+      const dataUrls = attachments
+        .map(a => a.base64)
+        .filter((b): b is string => !!b)
+
+      onSubmit(e, dataUrls.length > 0 ? dataUrls : undefined)
+      setAttachments([])
+    } catch (err) {
+      console.error("Failed to process images", err)
+      showError({ title: "Process Failed", description: "Could not handle images" })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleModelChange = useCallback((modelId: string) => {
+    if (modelId && modelId !== activeModel) {
+      setActiveModel(modelId)
+    }
+  }, [activeModel, setActiveModel])
+
+  const activeModelName = useMemo(
+    () => models.find(m => m.id === activeModel)?.name || "Select Model",
+    [models, activeModel]
+  )
+
+  const modelOptions: DropdownOption[] = useMemo(
+    () => models.map((model) => ({
+      id: model.id,
+      label: model.name,
+    })),
+    [models]
+  )
+
+  // Handle draft attachments from session store (e.g. on rewind)
+  const draftAttachments = useSessionStore((s) => s.draftAttachments)
+  const setDraftAttachments = useSessionStore((s) => s.setDraftAttachments)
+  useEffect(() => {
+    if (draftAttachments && draftAttachments.length > 0) {
+      setIsProcessing(true)
+      const processDrafts = async () => {
+        try {
+          const newAttachments: Attachment[] = []
+          for (const url of draftAttachments) {
+            const result = await processImageUrl(url)
+            if (result) {
+              newAttachments.push(result)
+            }
+          }
+          setAttachments(prev => [...prev, ...newAttachments])
+          setDraftAttachments(null)
+        } catch (err) {
+          console.error("Failed to process draft attachments", err)
+        } finally {
+          setIsProcessing(false)
+        }
+      }
+      processDrafts()
+    }
+  }, [draftAttachments, setDraftAttachments, showError])
+
   return (
-    <form onSubmit={onSubmit} className="p-4 border-t border-border">
-      <div className="flex gap-2">
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          className="flex-1 bg-secondary rounded-lg px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring resize-none overflow-y-auto max-h-[150px] min-h-[44px]"
-          rows={1}
-          disabled={disabled}
-        />
-        {isLoading ? (
-          <button
-            type="button"
-            onClick={onInterrupt}
-            className="bg-destructive text-destructive-foreground rounded-lg px-4 py-3 transition-colors hover:bg-destructive/90 h-fit self-end"
-            title="Stop generation"
-          >
-            <Square size={18} fill="currentColor" />
-          </button>
-        ) : (
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="bg-primary text-primary-foreground rounded-lg px-4 py-3 disabled:opacity-50 transition-colors hover:bg-primary/90 h-fit self-end"
-          >
-            <Send size={18} />
-          </button>
+    <form onSubmit={handleSubmit} className="px-4 pb-4">
+      {/* Unified card container */}
+      <div className="rounded-2xl border border-border bg-secondary overflow-hidden">
+        {/* Attachment preview row */}
+        {attachments.length > 0 && (
+          <div className="flex gap-2 px-4 pt-3 overflow-x-auto">
+            {attachments.map((att, i) => (
+              <div key={i} className="relative group flex-shrink-0">
+                <img
+                  src={att.preview}
+                  alt="attachment"
+                  className="h-14 w-14 object-cover rounded-lg border border-border"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(i)}
+                  className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
+
+        {/* Textarea area */}
+        <div className="px-4 pt-3 pb-1">
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onFocus={onFocus}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className="w-full bg-transparent text-[15px] text-foreground placeholder:text-muted outline-none resize-none overflow-y-auto max-h-[150px] min-h-[24px] leading-relaxed scrollbar-none"
+            rows={1}
+            disabled={disabled}
+          />
+        </div>
+
+        {/* Hidden file input */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          className="hidden"
+          accept="image/*"
+          multiple
+        />
+
+        {/* Bottom toolbar */}
+        <div className="flex items-center justify-between px-2 pb-2.5 pt-0.5">
+          {/* Left group: Plus, Fast, Model */}
+          <div className="flex items-center gap-0.5">
+            {/* Plus / Attach button */}
+            <IconButton size="sm" rounded icon={<Plus size={18} strokeWidth={2} />} onClick={() => fileInputRef.current?.click()} disabled={disabled || isLoading} />
+
+            {/* Model selector dropdown */}
+            <Dropdown
+              options={modelOptions}
+              value={activeModel ?? undefined}
+              onChange={handleModelChange}
+              placement="top"
+              dark
+              trigger={
+                <div className="flex items-center gap-1 px-2 py-1.5 text-[13px] font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-lg transition-colors outline-none">
+                  <ChevronUp size={12} />
+                  <span>{activeModelName}</span>
+                </div>
+              }
+            />
+          </div>
+
+          {/* Right group: Mic, Submit/Stop */}
+          <div className="flex items-center gap-1">
+            {/* Voice input */}
+            <IconButton size="sm" icon={<Mic size={18} />} disabled />
+
+            {/* Submit / Interrupt */}
+            {isLoading ? (
+              <button
+                type="button"
+                onClick={onInterrupt}
+                className="p-2 cursor-pointer bg-accent/10 text-danger rounded-full hover:bg-accent/20 transition-all active:scale-90"
+                title="Stop generation"
+              >
+                <Square size={14} fill="currentColor" />
+              </button>
+            ) : (
+              <IconButton disabled={!canSubmit} rounded size="sm" icon={<ArrowRight size={18} strokeWidth={2.5} />} onClick={onSubmit} />
+            )}
+          </div>
+        </div>
       </div>
     </form>
   )

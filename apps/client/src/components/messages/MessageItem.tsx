@@ -1,60 +1,227 @@
+import { memo, useMemo, useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import type { Message } from "@/types/session"
 import { useSessionStore } from "@/stores/session"
 import { NodeRenderer } from "markstream-react"
-import { Undo2 } from "lucide-react"
+import { Undo2, ZoomIn } from "lucide-react"
+import { Button, Modal } from "@heroui/react"
 import { TaskSteps } from "./TaskSteps"
-import { TodoList } from "./TodoList"
+import { useConfirm } from "@/hooks/useConfirm"
+import { renderUIPart } from "../ui-parts/UIRegistry"
+import { ChevronDown, Brain } from "lucide-react"
 import "./MessageItem.scss"
+import { IconButton } from "../ui/IconButton"
 
 interface MessageItemProps {
   message: Message
 }
 
-export function MessageItem({ message }: MessageItemProps) {
-  const isAgent = message.role === "agent"
+function isPngUrl(url: string): boolean {
+  const lower = url.toLowerCase()
+  if (lower.startsWith("data:image/png")) return true
+  return /\.png(\?|#|$)/i.test(lower)
+}
 
-  const rewind = useSessionStore((state) => state.rewind)
+/** Isolated rewind button — subscribes to status independently so streaming updates don't re-render the message bubble */
+function RewindButton({ messageId }: { messageId: string }) {
+  const rewind = useSessionStore((s) => s.rewind)
+  const isRunning = useSessionStore((s) => s.status === "running")
+  const { confirm } = useConfirm()
+
+  const handleRewind = async () => {
+    const ok = await confirm({
+      title: "Rewind Session?",
+      description: "This will remove all subsequent messages and activities. Your current draft will be replaced with this prompt.",
+      confirmText: "Rewind",
+      cancelText: "Cancel",
+      variant: "destructive"
+    })
+    if (ok) {
+      rewind(messageId, true)
+    }
+  }
 
   return (
-    <div
-      className={cn(
-        "message-item group relative",
-        "rounded-lg px-4 py-3 text-sm",
-        message.role === "user"
-          ? "bg-primary text-primary-foreground ml-8"
-          : "bg-secondary mr-8 prose prose-sm prose-invert max-w-none"
-      )}
+    <Button
+      onPress={handleRewind}
+      isDisabled={isRunning}
+      isIconOnly
+      variant="secondary"
+      size="sm"
+      className="rounded-full shadow-sm border border-border"
     >
-      <div className="flex flex-col gap-2">
-        {message.metadata?.summary && (
-          <TaskSteps steps={message.metadata.summary} />
-        )}
-        {message.metadata?.todos && (
-          <TodoList todos={message.metadata.todos} />
-        )}
-        {isAgent ? (
-          <NodeRenderer
-            content={message.content}
-            final={!message.streaming}
-          />
-        ) : (
-          message.content
-        )}
-      </div>
+      <Undo2 className="w-4 h-4 text-foreground" />
+    </Button>
+  )
+}
 
-      <div className="absolute top-3 -left-6 opacity-0 group-hover:opacity-100 transition-opacity">
-        {message.role === "user" && (
-          <button
-            onClick={() => rewind(message.id, true, message.content)}
-            className="p-1 hover:bg-secondary rounded-full text-xs flex items-center gap-1"
-            title="Rewind to this prompt"
+function ReasoningBlock({ text }: { text: string }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const previewText = text.replace(/\n/g, " ").slice(0, 80).trim() + (text.length > 80 ? "..." : "")
+
+  return (
+    <div className="reasoning-block border-l-2 border-primary/30 px-3 py-2 bg-muted/30 rounded-r-md">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left"
+      >
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Brain className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="font-medium italic flex-shrink-0">Thinking</span>
+          {!isExpanded && (
+            <span className="text-[10px] text-muted-foreground/60 truncate italic ml-1 max-w-[200px]">
+              {previewText}
+            </span>
+          )}
+        </div>
+        <ChevronDown className={cn("w-3.5 h-3.5 ml-auto flex-shrink-0 transition-transform duration-200", isExpanded && "rotate-180")} />
+      </button>
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="overflow-hidden"
           >
-            <Undo2 className="w-3 h-3" />
-          </button>
+            <div className="reasoning-content pb-2 text-xs italic text-muted-foreground/80 leading-relaxed">
+              <NodeRenderer content={text} final={true} />
+            </div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </div>
   )
 }
 
+export const MessageItem = memo(function MessageItem({ message }: MessageItemProps) {
+  const isUser = message.role === "user"
+  const isAgent = message.role === "agent"
+  const [scaledImageUrl, setScaledImageUrl] = useState<string | null>(null)
+
+  const hasSummary = Array.isArray(message.metadata?.summary) && message.metadata.summary.length > 0
+  const hasTextOrReasoning = (message.parts || []).some((part) => {
+    if (part.type === "text") return !!part.text?.trim()
+    if (part.type === "reasoning") return !!part.text?.trim()
+    return false
+  })
+  const hasFallbackContent = (!message.parts || message.parts.length === 0) && !!message.content?.trim()
+  const showBubble = message.role === "error" || hasSummary || hasTextOrReasoning || hasFallbackContent
+
+  const bubbleClass = useMemo(() => cn(
+    "rounded-lg py-3 text-sm w-full",
+    isUser
+      ? "bg-primary px-4 text-primary-foreground ml-8"
+      : message.role === "error"
+        ? "bg-red-400 border text-white px-4 py-3"
+        : "bg-transparent prose prose-sm prose-invert"
+  ), [isUser, message.role])
+
+  const imageBlockClass = useMemo(() => cn(
+    "rounded-lg overflow-hidden w-fit max-w-full",
+    isUser ? "ml-8" : ""
+  ), [isUser])
+
+  const isScaleOpen = scaledImageUrl !== null
+  const scaledIsPng = scaledImageUrl ? isPngUrl(scaledImageUrl) : false
+
+  return (
+    <div className={cn(
+      "message-item group relative flex flex-col gap-2",
+      isUser ? "items-end" : "items-start",
+      message.role === "error" && "w-full items-center my-4"
+    )}>
+      <div className={cn("flex flex-col w-full overflow-x-auto", isUser ? "items-end" : "items-start")}>
+        {/* Main content block: metadata and text parts */}
+        {showBubble && (
+          <div className={bubbleClass}>
+            {message.metadata?.summary && (
+              <TaskSteps steps={message.metadata.summary} />
+            )}
+            <div className={cn("flex flex-col gap-2 overflow-x-hidden", isUser && "prose prose-sm prose-invert max-w-none overflow-x-auto")}>
+              {message.parts && message.parts.length > 0 ? (
+                message.parts
+                  .filter(part => part.type === "text" || part.type === "reasoning")
+                  .map((part, i) => (
+                    <div key={i}>
+                      {part.type === "text" && part.text && (
+                        <NodeRenderer content={part.text} final={!message.streaming} />
+                      )}
+                      {part.type === "reasoning" && part.text && (
+                        <ReasoningBlock text={part.text} />
+                      )}
+                    </div>
+                  ))
+              ) : (
+                // Fallback for old messages
+                isAgent ? (
+                  <NodeRenderer content={message.content} final={!message.streaming} />
+                ) : (
+                  message.content
+                )
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Separate blocks for images and UI */}
+        {message.parts && message.parts.length > 0 && message.parts.map((part, i) => (
+          <div key={i}>
+            {part.type === "image" && part.url && (
+              <div className={cn(imageBlockClass, isPngUrl(part.url) && "image-grid", "relative")}>
+                <img
+                  src={part.url}
+                  alt="attachment"
+                  className="max-w-full rounded-md border border-border shadow-sm"
+                  loading="lazy"
+                />
+
+                <IconButton variant="solid" className="absolute top-1 right-1 z-10" size="sm" onClick={() => setScaledImageUrl(part.url!)}>
+                  <ZoomIn className="h-4 w-4" />
+                </IconButton>
+              </div>
+            )}
+            {part.type === "ui" && part.ui && (
+              <div className={isAgent ? "mr-8" : "ml-8"}>
+                {renderUIPart(part.ui.name, part.ui.props)}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className={cn("absolute", "-top-4 -right-2")}>
+        {isUser && <RewindButton messageId={message.id} />}
+      </div>
+
+      <Modal
+        isOpen={isScaleOpen}
+        onOpenChange={(open) => {
+          if (!open) setScaledImageUrl(null)
+        }}
+      >
+        <Modal.Backdrop
+          variant="blur"
+          className="bg-linear-to-t from-black/80 via-black/40 to-transparent dark:from-background/80 dark:via-background/40 backdrop-blur-xl"
+        >
+          <Modal.Container placement="center">
+            <Modal.Dialog className="outline-none !bg-transparent !shadow-none !p-0 !w-auto !max-w-none">
+              <div className={cn("rounded-lg overflow-hidden", scaledIsPng && "image-grid")}>
+                {scaledImageUrl && (
+                  <img
+                    src={scaledImageUrl}
+                    alt="Scaled preview"
+                    className="max-w-[90vw] max-h-[80vh] object-contain"
+                    loading="lazy"
+                  />
+                )}
+              </div>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+    </div>
+  )
+})

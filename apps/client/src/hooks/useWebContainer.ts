@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { WebContainer } from "@webcontainer/api"
-import { useFilesStore } from "@/stores/files"
 import { usePreviewStore } from "@/stores/preview"
 
 let webcontainerInstance: WebContainer | null = null
 let bootPromise: Promise<WebContainer> | null = null
 
-async function getWebContainer(): Promise<WebContainer> {
+export async function getWebContainer(): Promise<WebContainer> {
   if (webcontainerInstance) return webcontainerInstance
 
   if (!bootPromise) {
@@ -17,12 +16,21 @@ async function getWebContainer(): Promise<WebContainer> {
   return webcontainerInstance
 }
 
+// Eagerly start booting as soon as the module is imported.
+// This runs in parallel with React rendering and file loading,
+// shaving ~2-3s off the perceived startup time.
+getWebContainer()
+
 export function useWebContainer() {
   const [isReady, setIsReady] = useState(false)
   const serverProcessRef = useRef<{ kill: () => void } | null>(null)
   const installProcessRef = useRef<{ kill: () => void } | null>(null)
-  const { files: _files, applyPatch } = useFilesStore()
-  const { setUrl, setStatus, setError, addLog } = usePreviewStore()
+
+  // Only subscribe to actions — they are stable refs and won't cause re-renders
+  const setUrl = usePreviewStore((s) => s.setUrl)
+  const setStatus = usePreviewStore((s) => s.setStatus)
+  const setError = usePreviewStore((s) => s.setError)
+  const addLog = usePreviewStore((s) => s.addLog)
 
   const boot = useCallback(async () => {
     try {
@@ -70,30 +78,47 @@ export function useWebContainer() {
     if (!wc) return false
 
     setStatus("installing")
-    addLog("log", "Installing dependencies...")
 
-    const installProcess = await wc.spawn("npm", ["install"])
-    installProcessRef.current = installProcess
+    // Try npm ci first (fast, lockfile-based), fall back to npm install
+    const strategies = [
+      { cmd: "ci", args: ["ci"], label: "npm ci" },
+      { cmd: "install", args: ["install", "--prefer-offline"], label: "npm install --prefer-offline" },
+    ]
 
-    installProcess.output.pipeTo(
-      new WritableStream({
-        write(data) {
-          addLog("log", data)
+    for (const { args, label } of strategies) {
+      addLog("log", `Running ${label}...`)
+
+      const installProcess = await wc.spawn("npm", args, {
+        env: {
+          CI: "true",
+          npm_config_progress: "false",
+          TERM: "dumb",
         },
       })
-    )
+      installProcessRef.current = installProcess
 
-    const exitCode = await installProcess.exit
-    installProcessRef.current = null
+      installProcess.output.pipeTo(
+        new WritableStream({
+          write(data) {
+            addLog("log", data)
+          },
+        })
+      )
 
-    if (exitCode !== 0) {
-      setError("Failed to install dependencies")
-      addLog("error", `npm install failed with exit code ${exitCode}`)
-      return false
+      const exitCode = await installProcess.exit
+      installProcessRef.current = null
+
+      if (exitCode === 0) {
+        addLog("log", "Dependencies installed")
+        return true
+      }
+
+      addLog("log", `${label} failed (exit ${exitCode}), trying next strategy...`)
     }
 
-    addLog("log", "Dependencies installed")
-    return true
+    setError("Failed to install dependencies")
+    addLog("error", "All install strategies failed")
+    return false
   }, [setStatus, setError, addLog])
 
   const startDevServer = useCallback(async () => {
@@ -107,7 +132,13 @@ export function useWebContainer() {
       serverProcessRef.current.kill()
     }
 
-    const serverProcess = await wc.spawn("npm", ["run", "dev"])
+    const serverProcess = await wc.spawn("npm", ["run", "dev"], {
+      env: {
+        CI: "true",
+        npm_config_progress: "false",
+        TERM: "dumb",
+      },
+    })
     serverProcessRef.current = serverProcess
 
     serverProcess.output.pipeTo(
@@ -127,7 +158,7 @@ export function useWebContainer() {
   }, [setUrl, setStatus, addLog])
 
   const applyFilePatch = useCallback(
-    async (patch: { op: "write" | "delete" | "mkdir"; path: string; content?: string }) => {
+    async (patch: { op: "write" | "delete" | "mkdir"; path: string; content?: string; encoding?: "utf-8" | "base64" }) => {
       const wc = await getWebContainer()
       if (!wc) return
 
@@ -141,7 +172,18 @@ export function useWebContainer() {
               if (dir) {
                 await wc.fs.mkdir(dir, { recursive: true })
               }
-              await wc.fs.writeFile(patch.path, patch.content)
+
+              if (patch.encoding === "base64") {
+                // Convert base64 to Uint8Array
+                const binaryString = atob(patch.content)
+                const bytes = new Uint8Array(binaryString.length)
+                for (let i = 0; i < binaryString.length; i++) {
+                  bytes[i] = binaryString.charCodeAt(i)
+                }
+                await wc.fs.writeFile(patch.path, bytes)
+              } else {
+                await wc.fs.writeFile(patch.path, patch.content)
+              }
             }
             break
           case "delete":
@@ -153,13 +195,13 @@ export function useWebContainer() {
         }
 
         // Also update local store
-        applyPatch(patch)
+        // useFilesStore.getState().applyPatch(patch) -- REMOVED to avoid loop with useFileSync
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to apply patch"
         addLog("error", message)
       }
     },
-    [applyPatch, addLog]
+    [addLog]
   )
 
   const teardown = useCallback(() => {

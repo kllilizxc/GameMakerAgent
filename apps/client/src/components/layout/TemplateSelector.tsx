@@ -1,17 +1,26 @@
 import { useEffect } from "react"
 import { useSessionStore } from "@/stores/session"
 import { storage } from "@/lib/storage"
+import { Trash2, ArrowRight } from "lucide-react"
+import { useConfirm } from "@/hooks/useConfirm"
+import { useNavigate } from "react-router-dom"
 
 export function TemplateSelector() {
     const templates = useSessionStore((s) => s.templates)
     const createSession = useSessionStore((s) => s.createSession)
-    const resumeSession = useSessionStore((s) => s.resumeSession)
     const history = useSessionStore((s) => s.history)
     const loadHistory = useSessionStore((s) => s.loadHistory)
+    const deleteSession = useSessionStore((s) => s.deleteSession)
+
+    const { confirm } = useConfirm()
+    const navigate = useNavigate()
+
+    const fetchTemplates = useSessionStore((s) => s.fetchTemplates)
 
     useEffect(() => {
         loadHistory()
-    }, [loadHistory])
+        fetchTemplates()
+    }, [loadHistory, fetchTemplates])
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-[#09090b] text-white p-8">
@@ -25,11 +34,21 @@ export function TemplateSelector() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[400px] overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[400px] overflow-y-auto scrollbar-none">
                     {templates.map((template) => (
                         <button
                             key={template.id}
-                            onClick={() => createSession(template.id)}
+                            onClick={async () => {
+                                try {
+                                    const data = await createSession(template.id)
+                                    if (data?.sessionId) {
+                                        navigate(`/session/${data.sessionId}`)
+                                    }
+                                } catch (e) {
+                                    // Error handled by store
+                                    console.error(e)
+                                }
+                            }}
                             className="group relative flex flex-col items-start p-6 rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 hover:border-zinc-700 transition-all duration-200 text-left hover:shadow-2xl hover:shadow-blue-900/10"
                         >
                             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
@@ -40,20 +59,7 @@ export function TemplateSelector() {
                                         {template.thumbnail || "🎮"}
                                     </span>
                                     <div className="h-8 w-8 rounded-full border border-zinc-700 flex items-center justify-center group-hover:border-blue-500 group-hover:text-blue-500 transition-colors">
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                        >
-                                            <path d="M5 12h14" />
-                                            <path d="m12 5 7 7-7 7" />
-                                        </svg>
+                                        <ArrowRight size={16} />
                                     </div>
                                 </div>
 
@@ -75,7 +81,13 @@ export function TemplateSelector() {
                             <h2 className="text-2xl font-semibold text-zinc-300">Recent Sessions</h2>
                             <button
                                 onClick={async () => {
-                                    if (confirm("Clear session history?")) {
+                                    const ok = await confirm({
+                                        title: "Clear History?",
+                                        description: "This will remove all session history from your browser. Local files will remain.",
+                                        confirmText: "Clear History",
+                                        variant: "destructive"
+                                    })
+                                    if (ok) {
                                         await storage.clearHistory()
                                         window.location.reload()
                                     }
@@ -98,17 +110,39 @@ export function TemplateSelector() {
                                             {new Date(session.lastActive).toLocaleString()}
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => resumeSession(session.id)}
-                                        className="px-3 py-1.5 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                                    >
-                                        Resume
-                                    </button>
+                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            onClick={() => navigate(`/session/${session.id}`)}
+                                            className="px-3 py-1.5 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md transition-colors"
+                                        >
+                                            Resume
+                                        </button>
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation()
+                                                const ok = await confirm({
+                                                    title: "Delete Session?",
+                                                    description: "This action cannot be undone. This will permanently delete the session and all its files.",
+                                                    confirmText: "Delete Forever",
+                                                    variant: "destructive"
+                                                })
+                                                if (ok) {
+                                                    deleteSession(session.id)
+                                                }
+                                            }}
+                                            className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-950/30 rounded-md transition-colors"
+                                            title="Delete Session"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </div>
                 )}
+
             </div>
         </div>
     )

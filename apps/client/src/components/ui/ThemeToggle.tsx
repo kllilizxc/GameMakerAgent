@@ -1,77 +1,50 @@
-import { useThemeStore, themes, type ThemeId } from "@/stores/theme"
-import { useEffect, useState } from "react"
+import { useThemeStore, availableThemes } from "@/stores/theme"
+import { memo, useMemo } from "react"
+import { Sun, Moon } from "lucide-react"
+import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown"
+import { cn } from "@/lib/utils"
+import { IconButton } from "@/components/ui/IconButton"
 
-export function ThemeToggle() {
-    const { currentTheme, setTheme, loadTheme } = useThemeStore()
-    const [isOpen, setIsOpen] = useState(false)
+export const ThemeToggle = memo(function ThemeToggle() {
+    const theme = useThemeStore((s) => s.theme)
+    const mode = useThemeStore((s) => s.mode)
+    const setTheme = useThemeStore((s) => s.setTheme)
+    const toggleMode = useThemeStore((s) => s.toggleMode)
 
-    useEffect(() => {
-        loadTheme()
-    }, [loadTheme])
+    const themeOptions: DropdownOption<string>[] = useMemo(() => availableThemes.map((t) => ({
+        id: t.id,
+        label: t.name,
+        endIcon: (
+            <span
+                className={cn(
+                    "w-3 h-3 rounded-full border border-border shadow-sm",
+                    !t.color && "bg-muted"
+                )}
+                style={{ backgroundColor: t.color }}
+            />
+        ),
+    })), []) // availableThemes is a module-level constant
 
     return (
-        <div className="relative">
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
-                title="Change Theme"
-            >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                >
-                    <circle cx="12" cy="12" r="4" />
-                    <path d="M12 2v2" />
-                    <path d="M12 20v2" />
-                    <path d="m4.93 4.93 1.41 1.41" />
-                    <path d="m17.66 17.66 1.41 1.41" />
-                    <path d="M2 12h2" />
-                    <path d="M20 12h2" />
-                    <path d="m6.34 17.66-1.41 1.41" />
-                    <path d="m19.07 4.93-1.41 1.41" />
-                </svg>
-            </button>
-
-            {isOpen && (
-                <>
-                    <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setIsOpen(false)}
-                    />
-                    <div className="absolute right-0 top-full mt-2 z-50 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl p-2 min-w-[140px]">
-                        {themes.map((theme) => (
-                            <button
-                                key={theme.id}
-                                onClick={() => {
-                                    setTheme(theme.id as ThemeId)
-                                    setIsOpen(false)
-                                }}
-                                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${currentTheme === theme.id
-                                        ? "bg-primary/20 text-primary"
-                                        : "hover:bg-zinc-800 text-zinc-300"
-                                    }`}
-                            >
-                                <span className="flex items-center gap-2">
-                                    <span
-                                        className="w-3 h-3 rounded-full"
-                                        style={{
-                                            backgroundColor: `hsl(${theme.variables["--primary"]})`,
-                                        }}
-                                    />
-                                    {theme.name}
-                                </span>
-                            </button>
-                        ))}
+        <div className="flex items-center gap-2">
+            <Dropdown
+                options={themeOptions}
+                value={theme}
+                onChange={setTheme}
+                placement="bottom"
+                trigger={
+                    <div className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium transition-colors rounded-md hover:bg-primary text-foreground hover:text-primary-foreground">
+                        <span className="capitalize">{availableThemes.find(t => t.id === theme)?.name || theme}</span>
                     </div>
-                </>
-            )}
+                }
+            />
+            <IconButton
+                onClick={toggleMode}
+                title="Toggle Mode"
+                size="md"
+                className="h-9 w-9" // Slightly smaller than md default (10) to match prev style
+                icon={mode === "light" ? <Sun size={18} /> : <Moon size={18} />}
+            />
         </div>
     )
-}
+})

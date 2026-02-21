@@ -1,16 +1,78 @@
-import { useEffect, useRef } from "react"
+import React, { memo, useEffect, useRef, useCallback } from "react"
 import { usePreviewStore } from "@/stores/preview"
+import { useIsMobile } from "@/hooks/useIsMobile"
+import { cn } from "@/lib/utils"
 import { Loader2, AlertCircle, Gamepad2 } from "lucide-react"
 
-export function GamePreview() {
-  const { url, status, error, refreshKey } = usePreviewStore()
+interface GamePreviewProps {
+  width?: number
+  height?: number
+}
+
+export const GamePreview = memo(function GamePreview({ width = 800, height = 600 }: GamePreviewProps) {
+  const url = usePreviewStore((s) => s.url)
+  const status = usePreviewStore((s) => s.status)
+  const error = usePreviewStore((s) => s.error)
+  const refreshKey = usePreviewStore((s) => s.refreshKey)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     if (iframeRef.current && url) {
       iframeRef.current.src = url
     }
   }, [url, refreshKey])
+
+  // Listen for runtime errors from the iframe (injected script)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Debug log to trace messages
+      if (event.data?.type?.startsWith('preview-')) {
+        console.log("[GamePreview] Received message:", event.data);
+      }
+
+      if (typeof event.data === "object") {
+        if (event.data?.type === "preview-error") {
+          usePreviewStore.getState().addLog("error", event.data.message)
+        } else if (event.data?.type === "preview-warn") {
+          usePreviewStore.getState().addLog("warn", event.data.message)
+        } else if (event.data?.type === "preview-log") {
+          usePreviewStore.getState().addLog("log", event.data.message)
+        }
+      }
+    }
+    window.addEventListener("message", handleMessage)
+    return () => window.removeEventListener("message", handleMessage)
+  }, [])
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = React.useState(1)
+  const rafRef = useRef<number>(0)
+
+  const updateScale = useCallback(() => {
+    if (!containerRef.current) return
+    const { width: containerWidth, height: containerHeight } = containerRef.current.getBoundingClientRect()
+    const scaleX = containerWidth / width
+    const scaleY = containerHeight / height
+    setScale(Math.min(scaleX, scaleY))
+  }, [width, height])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(updateScale)
+    })
+    observer.observe(el)
+    updateScale()
+
+    return () => {
+      observer.disconnect()
+      cancelAnimationFrame(rafRef.current)
+    }
+  }, [updateScale, status, url]) // Re-run when status/url changes so observer is set up after early returns
 
   if (status === "booting" || status === "installing") {
     return (
@@ -43,11 +105,29 @@ export function GamePreview() {
   }
 
   return (
-    <iframe
-      ref={iframeRef}
-      className="w-full h-full border-0 bg-black"
-      title="Game Preview"
-      sandbox="allow-scripts allow-same-origin allow-forms"
-    />
+    <div
+      ref={containerRef}
+      className={cn(
+        "w-full h-full flex justify-center overflow-hidden bg-black relative",
+        isMobile ? "items-start pt-8" : "items-center"
+      )}
+    >
+      <div
+        style={{
+          width,
+          height,
+          transform: `scale(${scale})`,
+          transformOrigin: isMobile ? 'top center' : 'center center',
+        }}
+        className="shrink-0"
+      >
+        <iframe
+          ref={iframeRef}
+          className="w-full h-full border-0"
+          title="Game Preview"
+          sandbox="allow-scripts allow-same-origin allow-forms"
+        />
+      </div>
+    </div>
   )
-}
+})
