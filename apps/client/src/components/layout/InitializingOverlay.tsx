@@ -14,7 +14,7 @@ const PROGRESS_UPDATE_INTERVAL = 100 // ms
 const PROGRESS_STEP_RATIO = 0.02 // 2% of remaining distance
 const MIN_PROGRESS_STEP = 0.1
 
-export function LoadingOverlay() {
+export function InitializingOverlay() {
     const wcStatus = usePreviewStore((s) => s.status)
     const [progress, setProgress] = useState(0)
 
@@ -48,7 +48,7 @@ export function LoadingOverlay() {
     if (wcStatus === "running" || wcStatus === "error") return null
 
     return (
-        <div className="absolute inset-0 z-50 flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 z-999 flex items-center justify-center overflow-hidden">
             {/* Gradient background */}
             <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
 
