@@ -13,6 +13,11 @@ Demo (I use free server so it's super slow): https://gamemakeragent-client.onren
 <!-- Add your demo GIF or video link here -->
 ![Demo GIF](docs/images/demo.gif)
 
+## 📱 Mobile
+
+<p align="center">
+  <img src="docs/images/mobile-preview.png" alt="Mobile Screenshot" width="320" />
+</p>
 
 ## ✨ Features
 
