@@ -26,7 +26,7 @@ function SessionLayout() {
 export function App() {
   const loadHistory = useSessionStore((s) => s.loadHistory)
   const fetchModels = useSettingsStore((s) => s.fetchModels)
-  const isRewinding = useSessionStore((s) => s.isRewinding)
+  const loadingState = useSessionStore((s) => s.loadingState)
   const isChangingTheme = useThemeStore((s) => s.isChangingTheme)
   const mode = useThemeStore((s) => s.mode)
   const targetMode = useThemeStore((s) => s.targetMode)
@@ -39,7 +39,7 @@ export function App() {
 
   return (
     <>
-      <LoadingOverlay show={isRewinding} message="Rewinding session..." />
+      <LoadingOverlay show={loadingState.enabled} message={loadingState.message} />
       <ThemeCurtain
         show={isChangingTheme}
         fromMode={mode}

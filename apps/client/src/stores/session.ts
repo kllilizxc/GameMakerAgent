@@ -13,6 +13,7 @@ interface SessionState {
   sessionId: string | null
   engineId: string
   status: "idle" | "connecting" | "running" | "error"
+  loadingState: { enabled: boolean; message: string }
   messages: Message[]
   activities: Activity[]
   streamingMessageId: string | null
@@ -34,7 +35,6 @@ interface SessionState {
   draftPrompt: string | null
   draftAttachments: string[] | null
   reconnectTimer: ReturnType<typeof setTimeout> | null
-  isRewinding: boolean
 
   loadMoreMessages: () => void
   fetchTemplates: () => void
@@ -66,6 +66,7 @@ export const useSessionStore = create<SessionState>()(
       sessionId: null,
       engineId: "phaser-2d",
       status: "idle",
+      loadingState: { enabled: false, message: "Loading..." },
       messages: [],
       activities: [],
       streamingMessageId: null,
@@ -82,14 +83,16 @@ export const useSessionStore = create<SessionState>()(
       draftPrompt: null,
       draftAttachments: null,
       reconnectTimer: null,
-      isRewinding: false,
 
       fetchTemplates: async () => {
+        set({ loadingState: { enabled: true, message: "Loading templates..." } })
         try {
           const templates = await fetchTemplates()
           set({ templates })
         } catch (e) {
           console.error("Failed to fetch templates:", e)
+        } finally {
+          set((state) => ({ loadingState: { ...state.loadingState, enabled: false } }))
         }
       },
 
@@ -459,7 +462,7 @@ export const useSessionStore = create<SessionState>()(
       rewind: async (messageId: string, edit?: boolean) => {
         const { sessionId, messages } = get()
         if (!sessionId) return
-        set({ isRewinding: true })
+        set({ loadingState: { enabled: true, message: "Rewinding session..." } })
         try {
           if (edit) {
             const msg = messages.find(m => m.id === messageId)
@@ -489,7 +492,7 @@ export const useSessionStore = create<SessionState>()(
         } catch (e) {
           console.error("Failed to rewind session:", e)
         } finally {
-          set({ isRewinding: false })
+          set((state) => ({ loadingState: { ...state.loadingState, enabled: false } }))
         }
       },
 
