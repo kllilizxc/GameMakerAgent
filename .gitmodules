@@ -4,3 +4,6 @@
 [submodule "apps/server/src/engine/phaser-2d/templates/CardGame"]
 	path = apps/server/src/engine/phaser-2d/templates/CardGame
 	url = https://github.com/kllilizxc/CardGame.git
+[submodule "apps/server/src/engine/phaser-2d/templates/SpaceShooterGame"]
+	path = apps/server/src/engine/phaser-2d/templates/SpaceShooterGame
+	url = https://github.com/kllilizxc/SpaceShooterGame

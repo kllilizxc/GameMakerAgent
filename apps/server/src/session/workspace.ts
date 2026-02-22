@@ -20,13 +20,23 @@ export async function createWorkspace(sessionId: string, seed: FileMap): Promise
   const dir = workspacePath(sessionId)
   await mkdir(dir, { recursive: true })
 
-  for (const [path, content] of Object.entries(seed)) {
-    const full = join(dir, path)
+  for (const [filePath, fileContent] of Object.entries(seed)) {
+    const full = join(dir, filePath)
     const parent = full.substring(0, full.lastIndexOf("/"))
     if (parent !== dir) {
       await mkdir(parent, { recursive: true })
     }
-    await writeFile(full, content, "utf-8")
+    if (typeof fileContent === "string") {
+      await writeFile(full, fileContent, "utf-8")
+      continue
+    }
+
+    if (fileContent.encoding === "base64") {
+      await writeFile(full, Buffer.from(fileContent.content, "base64"))
+      continue
+    }
+
+    await writeFile(full, fileContent.content, "utf-8")
   }
 
   // Initialize as git repo to enable OpenCode's snapshot tracking
@@ -143,4 +153,3 @@ export async function loadMetadata(sessionId: string): Promise<SessionMetadata |
     return null
   }
 }
-
