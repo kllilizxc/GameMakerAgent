@@ -1,4 +1,5 @@
 import type { FileMap, TemplateInfo } from "../adapter"
+import { isImageFile } from "@game-agent/common"
 import * as fs from "fs"
 import * as path from "path"
 
@@ -12,12 +13,19 @@ function readFilesRecursive(baseDir: string, relativePath: string): FileMap {
   const fullPath = path.join(baseDir, relativePath)
 
   for (const entry of fs.readdirSync(fullPath, { withFileTypes: true })) {
+    if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".DS_Store" || entry.name === ".idea" || entry.name === ".vscode") continue
+
     const entryRelativePath = relativePath ? `${relativePath}/${entry.name}` : entry.name
 
     if (entry.isDirectory()) {
       Object.assign(result, readFilesRecursive(baseDir, entryRelativePath))
     } else if (entry.isFile() && entry.name !== "template.json") {
-      result[entryRelativePath] = fs.readFileSync(path.join(fullPath, entry.name), "utf-8")
+      const diskPath = path.join(fullPath, entry.name)
+      if (isImageFile(entryRelativePath)) {
+        result[entryRelativePath] = { content: fs.readFileSync(diskPath).toString("base64"), encoding: "base64" }
+      } else {
+        result[entryRelativePath] = fs.readFileSync(diskPath, "utf-8")
+      }
     }
   }
 
@@ -40,22 +48,33 @@ export function loadFileBasedTemplates(): { templates: TemplateInfo[], templateF
 
     const templatePath = path.join(TEMPLATES_DIR, folder.name)
     const metadataPath = path.join(templatePath, "template.json")
+    const externalMetadataPath = path.join(TEMPLATES_DIR, `${folder.name}.template.json`)
     const packagePath = path.join(templatePath, "package.json")
 
     let metadata: any = {}
 
+    if (fs.existsSync(packagePath)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(packagePath, "utf-8"))
+        metadata.name ??= pkg.name
+        metadata.description ??= pkg.description
+      } catch (e) { }
+    }
+
     if (fs.existsSync(metadataPath)) {
       try {
-        metadata = JSON.parse(fs.readFileSync(metadataPath, "utf-8"))
+        metadata = { ...metadata, ...JSON.parse(fs.readFileSync(metadataPath, "utf-8")) }
       } catch (e) {
         console.warn(`Failed to parse template.json for ${folder.name}`, e)
       }
-    } else if (fs.existsSync(packagePath)) {
+    }
+
+    if (fs.existsSync(externalMetadataPath)) {
       try {
-        const pkg = JSON.parse(fs.readFileSync(packagePath, "utf-8"))
-        metadata.name = pkg.name
-        metadata.description = pkg.description
-      } catch (e) { }
+        metadata = { ...metadata, ...JSON.parse(fs.readFileSync(externalMetadataPath, "utf-8")) }
+      } catch (e) {
+        console.warn(`Failed to parse ${folder.name}.template.json`, e)
+      }
     }
 
     templates.push({
@@ -79,12 +98,6 @@ export const templates: TemplateInfo[] = [
     name: "Platformer",
     description: "Basic platformer with jumping, gravity, and platforms.",
     thumbnail: "🏃",
-  },
-  {
-    id: "shooter",
-    name: "Space Shooter",
-    description: "Top-down space shooter with player, enemies, and bullets.",
-    thumbnail: "🚀",
   },
   {
     id: "puzzle",
@@ -1272,103 +1285,6 @@ export class MainScene extends Phaser.Scene {
     if (this.cursors.up.isDown && this.player.body.touching.down) {
       this.player.setVelocityY(-330)
     }
-  }
-}
-`,
-  },
-
-  shooter: {
-    ...commonFiles,
-    "src/main.ts": `import Phaser from "phaser"
-import { MainScene } from "./scenes/MainScene"
-
-const config: Phaser.Types.Core.GameConfig = {
-  type: Phaser.AUTO,
-  width: 800,
-  height: 600,
-  backgroundColor: "#000000",
-  physics: {
-    default: "arcade",
-    arcade: {
-      gravity: { x: 0, y: 0 },
-      debug: false,
-    },
-  },
-  scene: [MainScene],
-}
-
-new Phaser.Game(config)
-`,
-    "src/scenes/MainScene.ts": `import Phaser from "phaser"
-
-export class MainScene extends Phaser.Scene {
-  private player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
-  private bullets!: Phaser.Physics.Arcade.Group
-  private lastFired = 0
-
-  constructor() {
-    super("MainScene")
-  }
-
-  preload() {
-    this.load.setBaseURL('https://labs.phaser.io')
-    this.load.image('ship', 'assets/sprites/phaser-dude.png')
-    this.load.image('bullet', 'assets/sprites/bullets/bullet5.png')
-  }
-
-  create() {
-    // Player
-    this.player = this.physics.add.sprite(400, 500, 'ship')
-    this.player.setCollideWorldBounds(true)
-
-    // Bullets
-    this.bullets = this.physics.add.group({
-      defaultKey: 'bullet',
-      maxSize: 10
-    })
-
-    // Input
-    if (this.input.keyboard) {
-      this.cursors = this.input.keyboard.createCursorKeys()
-    }
-
-    this.add.text(16, 16, 'Arrow keys to move, Space to shoot', { fontSize: '24px', color: '#ffffff' })
-  }
-
-  update(time: number) {
-    if (!this.cursors) return
-
-    // Movement
-    if (this.cursors.left.isDown) {
-      this.player.setVelocityX(-300)
-    } else if (this.cursors.right.isDown) {
-      this.player.setVelocityX(300)
-    } else {
-      this.player.setVelocityX(0)
-    }
-
-    // Shooting
-    if (this.cursors.space.isDown && time > this.lastFired) {
-      const bullet = this.bullets.get(this.player.x, this.player.y - 20) as Phaser.Physics.Arcade.Image
-      
-      if (bullet) {
-        bullet.setActive(true)
-        bullet.setVisible(true)
-        bullet.setVelocityY(-400)
-        this.lastFired = time + 200
-      }
-    }
-
-    // Cleanup bullets
-    this.bullets.children.each((b) => {
-      const bullet = b as Phaser.Physics.Arcade.Image
-      if (bullet.active && bullet.y < 0) {
-        bullet.setActive(false)
-        bullet.setVisible(false)
-      }
-      return true
-    })
   }
 }
 `,

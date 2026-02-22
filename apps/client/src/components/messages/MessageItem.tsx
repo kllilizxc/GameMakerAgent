@@ -193,7 +193,7 @@ export const MessageItem = memo(function MessageItem({ message }: MessageItemPro
       </div>
 
       <div className={cn("absolute", "-top-4 -right-2")}>
-        {isUser && <RewindButton messageId={message.id} />}
+        {isUser && !message.synthetic && <RewindButton messageId={message.id} />}
       </div>
 
       <Modal

@@ -13,9 +13,16 @@ interface SessionState {
   sessionId: string | null
   engineId: string
   status: "idle" | "connecting" | "running" | "error"
+  loadingState: { enabled: boolean; message: string }
   messages: Message[]
   activities: Activity[]
   streamingMessageId: string | null
+  pendingUserMessage: {
+    id: string
+    content: string
+    imageCount: number
+    createdAt: number
+  } | null
   sequence: number
   error: string | null
   currentRunId: string | null
@@ -28,7 +35,6 @@ interface SessionState {
   draftPrompt: string | null
   draftAttachments: string[] | null
   reconnectTimer: ReturnType<typeof setTimeout> | null
-  isRewinding: boolean
 
   loadMoreMessages: () => void
   fetchTemplates: () => void
@@ -60,9 +66,11 @@ export const useSessionStore = create<SessionState>()(
       sessionId: null,
       engineId: "phaser-2d",
       status: "idle",
+      loadingState: { enabled: false, message: "Loading..." },
       messages: [],
       activities: [],
       streamingMessageId: null,
+      pendingUserMessage: null,
       sequence: 0,
       error: null,
       currentRunId: null,
@@ -75,14 +83,16 @@ export const useSessionStore = create<SessionState>()(
       draftPrompt: null,
       draftAttachments: null,
       reconnectTimer: null,
-      isRewinding: false,
 
       fetchTemplates: async () => {
+        set({ loadingState: { enabled: true, message: "Loading templates..." } })
         try {
           const templates = await fetchTemplates()
           set({ templates })
         } catch (e) {
           console.error("Failed to fetch templates:", e)
+        } finally {
+          set((state) => ({ loadingState: { ...state.loadingState, enabled: false } }))
         }
       },
 
@@ -214,7 +224,15 @@ export const useSessionStore = create<SessionState>()(
 
       leaveSession: () => {
         useFilesStore.getState().reset()
-        set({ sessionId: null, messages: [], activities: [], streamingMessageId: null, sequence: 0, status: "idle" })
+        set({
+          sessionId: null,
+          messages: [],
+          activities: [],
+          streamingMessageId: null,
+          pendingUserMessage: null,
+          sequence: 0,
+          status: "idle"
+        })
       },
 
       sendPrompt: async (prompt: string, attachments?: string[]) => {
@@ -227,10 +245,36 @@ export const useSessionStore = create<SessionState>()(
           return
         }
 
+        const optimisticId = `client_${crypto.randomUUID()}`
+        const optimisticTimestamp = Date.now()
+        const optimisticParts: NonNullable<Message["parts"]> = []
+        if (prompt.trim().length > 0) {
+          optimisticParts.push({ type: "text", text: prompt })
+        }
+        for (const url of attachments || []) {
+          optimisticParts.push({ type: "image", url })
+        }
+
         set((s) => ({
           status: "running",
           error: null,
-          messages: s.messages
+          pendingUserMessage: {
+            id: optimisticId,
+            content: prompt,
+            imageCount: attachments?.length || 0,
+            createdAt: optimisticTimestamp,
+          },
+          messages: [
+            ...s.messages,
+            {
+              id: optimisticId,
+              role: "user",
+              content: prompt,
+              parts: optimisticParts,
+              timestamp: optimisticTimestamp,
+              synthetic: true,
+            },
+          ],
         }))
 
         try {
@@ -250,6 +294,7 @@ export const useSessionStore = create<SessionState>()(
           set((s) => ({
             status: "error",
             error: errorMessage,
+            pendingUserMessage: null,
             messages: [
               ...s.messages,
               {
@@ -417,7 +462,7 @@ export const useSessionStore = create<SessionState>()(
       rewind: async (messageId: string, edit?: boolean) => {
         const { sessionId, messages } = get()
         if (!sessionId) return
-        set({ isRewinding: true })
+        set({ loadingState: { enabled: true, message: "Rewinding session..." } })
         try {
           if (edit) {
             const msg = messages.find(m => m.id === messageId)
@@ -447,7 +492,7 @@ export const useSessionStore = create<SessionState>()(
         } catch (e) {
           console.error("Failed to rewind session:", e)
         } finally {
-          set({ isRewinding: false })
+          set((state) => ({ loadingState: { ...state.loadingState, enabled: false } }))
         }
       },
 
@@ -612,10 +657,17 @@ function handleServerMessage(
 
         messageMap.set(incoming.id, incoming)
 
+        let pendingUserMessage = s.pendingUserMessage
+        if (pendingUserMessage && isServerAckForPendingUserMessage(pendingUserMessage, incoming)) {
+          messageMap.delete(pendingUserMessage.id)
+          pendingUserMessage = null
+        }
+
         const mergedMessages = Array.from(messageMap.values())
         mergedMessages.sort((a, b) => a.timestamp - b.timestamp)
         return {
           messages: mergedMessages,
+          pendingUserMessage,
         }
       })
       break
@@ -623,7 +675,7 @@ function handleServerMessage(
 
     case "run/finished":
       useSessionStore.getState().finalizeStreamingMessage()
-      set({ status: "idle" })
+      set({ status: "idle", pendingUserMessage: null })
       break
 
     case "run/error": {
@@ -631,6 +683,7 @@ function handleServerMessage(
       set((s) => ({
         status: "error",
         error: errorMessage,
+        pendingUserMessage: null,
         messages: [
           ...s.messages,
           {
@@ -740,6 +793,7 @@ function handleServerMessage(
             activities,
             hasMoreMessages: hasMore,
             isLoadingMore: false,
+            pendingUserMessage: null,
           })
         } else {
           // Merge mode (for load more or updates): merge with existing messages
@@ -773,6 +827,7 @@ function handleServerMessage(
               activities: mergedActivities,
               hasMoreMessages: hasMore,
               isLoadingMore: false,
+              pendingUserMessage: s.pendingUserMessage,
             }
           })
         }
@@ -785,6 +840,7 @@ function handleServerMessage(
             activities: [],
             hasMoreMessages: hasMore,
             isLoadingMore: false,
+            pendingUserMessage: null,
           })
         } else {
           set({
@@ -796,4 +852,22 @@ function handleServerMessage(
       break
     }
   }
+}
+
+function isServerAckForPendingUserMessage(
+  pending: NonNullable<SessionState["pendingUserMessage"]>,
+  incoming: Message
+): boolean {
+  if (incoming.role !== "user") return false
+
+  const pendingText = pending.content.trim()
+  const incomingText = incoming.content.trim()
+
+  if (pendingText.length > 0) {
+    return incomingText === pendingText
+  }
+
+  if (pending.imageCount <= 0) return false
+  const incomingImageCount = (incoming.parts || []).filter((p) => p.type === "image" && !!p.url).length
+  return incomingText.length === 0 && incomingImageCount === pending.imageCount
 }

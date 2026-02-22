@@ -1,6 +1,7 @@
 import type { EngineId } from "../protocol/messages"
 
-export type FileMap = Record<string, string>
+export type FileContent = string | { content: string; encoding: "utf-8" | "base64" }
+export type FileMap = Record<string, FileContent>
 
 export interface EngineCapabilities {
   dimension: "2d" | "3d"
