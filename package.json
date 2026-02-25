@@ -60,6 +60,9 @@
   },
   "scripts": {
     "test:agent": "bun run --conditions=browser --cwd packages/opencode/packages/opencode ../../../../packages/agent/src/test.ts",
+    "test:tool:generate-image": "bun run --cwd packages/opencode/packages/opencode test:tool:generate-image",
+    "test:tool:generate-spritesheet": "bun run --cwd packages/opencode/packages/opencode test:tool:generate-spritesheet",
+    "test:tool:game-agent": "bun run --cwd packages/opencode/packages/opencode test:tool:game-agent",
     "dev:server": "bun run --env-file=apps/server/.env --watch apps/server/src/index.ts",
     "start:server": "bun run apps/server/src/index.ts",
     "dev:client": "bun run --cwd apps/client dev",
